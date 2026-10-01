@@ -1,0 +1,29 @@
+# Compilación y artefactos de Gradle (sin barra para que cubra todos los submódulos)
+build/
+**/build/
+.gradle/
+*.class
+
+# Configuración local de SDK y dispositivo (nunca debe subirse)
+local.properties
+/local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+.externalNativeBuild
+.cxx
+/captures
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Modelos comprimidos de Vosk (para no subir archivos pesados por error)
+*.zip
+*.tar.gz
+
+# Archivos de credenciales sensibles (si no quieren exponer cuentas de prueba)
+# google-services.json
