@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="translator_title">WanderVox</string>
+    <string name="translator_offline_badge">Offline</string>
+    <string name="translator_offline_badge_description">Traducción sin conexión disponible</string>
+    <string name="translator_preparing_models">Preparando modelos sin conexión…</string>
+
+    <string name="translator_language_spanish">Español</string>
+    <string name="translator_language_english">Inglés</string>
+    <string name="translator_source_language_description">Idioma de origen: %1$s</string>
+    <string name="translator_target_language_description">Idioma de destino: %1$s</string>
+    <string name="translator_swap_languages">Intercambiar idiomas</string>
+
+    <string name="translator_recognized_placeholder">Tocá para hablar…</string>
+    <string name="translator_listening_placeholder">Escuchando…</string>
+    <string name="translator_translation_placeholder">La traducción aparecerá acá</string>
+    <string name="translator_copy_translation">Copiar traducción</string>
+    <string name="translator_copied">Traducción copiada</string>
+    <string name="translator_speak_translation">Escuchar traducción (próximamente)</string>
+
+    <string name="translator_start_listening">Empezar a escuchar</string>
+    <string name="translator_stop_listening">Dejar de escuchar</string>
+
+    <string name="translator_save_to_log">Guardar en bitácora</string>
+    <string name="translator_save_sheet_title">Guardar en bitácora</string>
+    <string name="translator_category_label">Categoría</string>
+    <string name="translator_notes_label">Notas (opcional)</string>
+    <string name="translator_save_confirm">Guardar</string>
+    <string name="translator_saved_success">Guardado en tu bitácora</string>
+
+    <string name="translator_category_food">Comida</string>
+    <string name="translator_category_transport">Transporte</string>
+    <string name="translator_category_lodging">Alojamiento</string>
+    <string name="translator_category_shopping">Compras</string>
+    <string name="translator_category_emergency">Emergencia</string>
+
+    <string name="translator_mic_permission_denied">Necesitamos el micrófono para escucharte y traducir.</string>
+    <string name="translator_mic_permission_settings">Activá el permiso de micrófono en Ajustes para usar el traductor.</string>
+    <string name="translator_open_settings">Ajustes</string>
+    <string name="translator_retry">Reintentar</string>
+</resources>

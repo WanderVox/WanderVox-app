@@ -527,3 +527,164 @@ Firestore offline persistence is upcoming work). To keep the app building, `:cor
   in-flight jobs) stay private to the ViewModel instead of widening the public state.
 - `TravelLogEntry.userId` is left at its default (`""`) because authentication
   (`:features:auth`) does not exist yet. It should be filled from the signed-in user once auth lands.
+
+---
+
+## 8. Phase 4 — Translator UI & Hardware Integration (`:features:translator`)
+
+**Module:** `:features:translator` · **Date:** 2026-10-05
+
+### 8.1 Component decomposition
+
+```
+MainActivity ─ WanderVoxTheme
+└── TranslatorRoute                  (stateful: ViewModel, permission, sensor, clipboard, snackbars)
+    ├── ShakeEffect                  (sensor/ShakeDetector.kt)
+    └── TranslatorContent            (stateless: uiState in, lambdas out)
+        ├── TopAppBar  ─ OfflineBadge
+        ├── LinearProgressIndicator  (only while models initialize)
+        ├── LanguageSelectorBar      (two pill Surfaces + circular swap FilledIconButton)
+        ├── RecognizedTextCard       (mic icon, "Tocá para hablar…" placeholder)
+        ├── TranslatedTextCard       (copy IconButton, disabled TTS placeholder)
+        ├── MicButton                (Marigold circle + pulsing rings while listening)
+        ├── FilledTonalButton        ("Guardar en bitácora")
+        └── SaveToLogSheet           (ModalBottomSheet → SaveToLogForm: category chips + notes)
+```
+
+- **State hoisting.**
+  - `TranslatorRoute` is the only composable that knows about `TranslatorViewModel`, Android
+    framework services or one-off messages.
+  - `TranslatorContent` receives an immutable `TranslatorUiState` plus event lambdas, so all
+    three `@Preview`s (idle, listening, preparing models) render without Hilt, a device or a
+    microphone.
+  - Even the save sheet's visibility (`isSaveSheetVisible`) is hoisted to the route, because
+    the shake detector must know about it (§8.3).
+- **State collection.** `viewModel.uiState.collectAsStateWithLifecycle()` stops collecting below
+  `STARTED`. Together with the ViewModel's `WhileSubscribed(5_000)` (§7.3), the whole
+  speech/translation pipeline goes idle when the app is backgrounded.
+- **One-off messages.** `isSavedSuccess` and `errorMessage` are *consumed first*
+  (`OnResetSaveSuccess` / `OnDismissError`), then the snackbar is shown on the screen's
+  `rememberCoroutineScope`. Showing it inside the `LaunchedEffect` would not work: resetting
+  the flag changes the effect key, which cancels the effect and dismisses the snackbar it was
+  showing.
+- **Strings.** All copy lives in `res/values/strings.xml` (Spanish, as in the style guide).
+  `LogCategory` stores a stable English key (`"Food"`, `"Transport"`, …) in
+  `TravelLogEntry.category` and shows a localized label. The data stays language-independent.
+- **Icons.** Material3 1.4 no longer depends on `material-icons-core`, and
+  `material-icons-extended` is a very large artifact. The 7 icons used are official
+  Material Symbols (Rounded) vector drawables, downloaded from `google/material-design-icons`
+  into `res/drawable`. Each is about 1 KB.
+- **No deprecated APIs.** The module compiles with zero Kotlin warnings. Modern replacements used:
+  - `LocalClipboard` + `ClipEntry` instead of the deprecated `LocalClipboardManager`.
+  - `LifecycleResumeEffect` instead of a manual `LifecycleEventObserver`.
+  - `androidx.lifecycle.compose` APIs throughout.
+
+### 8.2 Runtime permission flow (`RECORD_AUDIO`)
+
+```mermaid
+flowchart TD
+    A[Mic tapped] --> B{isListening?}
+    B -- yes --> S[OnToggleListening → stop]
+    B -- no --> C{Permission granted?}
+    C -- yes --> T[OnToggleListening → start]
+    C -- no --> D[RequestPermission launcher]
+    D -- granted --> T
+    D -- denied --> E{shouldShowRequestPermissionRationale?}
+    E -- true --> F["Snackbar + 'Reintentar' → ask again"]
+    E -- false --> G["Snackbar + 'Ajustes' → app settings"]
+```
+
+- The permission is requested **in context**, the first time the user taps the mic, never at app
+  start. This follows Android's guidance and gives a higher grant rate.
+- `OnToggleListening` is dispatched **only** when the permission is granted. Stopping never needs
+  it. Because the user's intent was "start listening", a grant from the system dialog
+  immediately starts listening, with no second tap.
+- After a denial, `shouldShowRequestPermissionRationale == false` means "Don't ask again" (or
+  Android 11+ auto-denial after two refusals). Only the Settings screen can grant it then, so
+  the snackbar action opens `ACTION_APPLICATION_DETAILS_SETTINGS`.
+- The permission is declared once, in `:core:network`'s manifest (it is that module's hardware
+  dependency), and merged into the app.
+
+### 8.3 Sensor integration — shake to swap languages
+
+**Detection** (`ShakeDetector`, pure Kotlin, 6 unit tests):
+- Acceleration magnitude `√(x²+y²+z²) / g` must exceed **2.5 g**. Walking peaks around 1.2–1.5 g,
+  and the device at rest reads 1 g.
+- A *deliberate* shake needs **two peaks within 600 ms**. Samples less than 100 ms apart count
+  as the same jolt, so one bump or a dropped phone does not swap languages.
+- **Debounce.** After a shake, further shakes are ignored for **1.5 s**, so one long shake
+  produces exactly one swap.
+- Timestamps come from `SensorEvent.timestamp` (monotonic nanos), not the wall clock. This keeps
+  detection deterministic and lets the tests drive it with synthetic times.
+
+**Power & lifecycle management** (`ShakeEffect`):
+- The listener is registered in `LifecycleResumeEffect` and unregistered in `onPauseOrDispose`.
+  It only runs while the screen is **resumed**: leaving the app, opening another Activity or
+  turning off the screen powers the sensor down immediately, and removing the composable also
+  unregisters it.
+- `SENSOR_DELAY_UI` (~16 Hz) is enough for shake gestures and uses far less power than `GAME`
+  or `FASTEST`.
+- `rememberUpdatedState(onShake)` keeps the latest callback without re-registering the sensor
+  on every recomposition.
+- Devices without an accelerometer are handled: no sensor means nothing is registered.
+- **Disabled when it would be harmful:**
+  - while models initialize (the swap would be ignored);
+  - while the save sheet is open, because a swap clears the transcript the user is about to save.
+- A swap from shaking gives **haptic feedback** (`HapticFeedbackType.LongPress`), so the user
+  knows the gesture registered without looking at the screen.
+
+### 8.4 Accessibility & touch targets (≥ 48 dp)
+
+| Element | Touch target |
+|---|---|
+| Mic button | 88 dp circle |
+| Swap button | 48 dp (`Modifier.size(48.dp)`) |
+| Copy / TTS icon buttons | 48 dp (Material `minimumInteractiveComponentSize`) |
+| Category `FilterChip`s | 32 dp visual, 48 dp touch (`minimumInteractiveComponentSize`) |
+| "Guardar en bitácora" / "Guardar" buttons | full width, 52 dp min height |
+| Language pills | 48 dp min height (informational) |
+
+- **Content descriptions.**
+  - Every actionable icon has one.
+  - The mic's description reflects its state ("Empezar a escuchar" / "Dejar de escuchar").
+  - Decorative icons use `contentDescription = null`.
+- **Merged semantics.** Language pills and the Offline badge use `clearAndSetSemantics`, so
+  TalkBack reads one meaningful phrase ("Idioma de origen: Español") instead of fragments.
+  The badge is intentionally *not* clickable: a fake button would mislead screen-reader users.
+- **Live region.** The translated text uses `liveRegion = LiveRegionMode.Polite`, so new
+  translations are announced without the user moving focus.
+- **Color contrast.**
+  - Every pairing follows §6.4: `onTertiary` on Marigold is 9.01:1, and the badge
+    (`onPrimaryContainer` on `primaryContainer`) is 10.2:1.
+  - Placeholders use `onSurfaceVariant` on white cards (4.83:1).
+- **Disabled states.** These are visibly disabled, not silently ignored:
+  - the mic, swap and save buttons while models initialize;
+  - save while there is nothing recognized;
+  - the TTS placeholder.
+
+### 8.5 Verification
+
+- `:features:translator` and `:app` (including Hilt's `hiltJavaCompileDebug`) compile with **no
+  Kotlin warnings**.
+- Unit tests: `TranslatorViewModelTest` 9/9, `ShakeDetectorTest` 6/6.
+- **Not yet verified on a device:** the permission dialogs, real accelerometer thresholds,
+  pulse animation smoothness, and TalkBack behaviour.
+- **Android Lint could not run.** It crashes in `:core:ui` with `IncompatibleClassChangeError`
+  in `NonNullableMutableLiveDataDetector`. The lint checks bundled with androidx lifecycle 2.9.x
+  (already pulled in transitively by the Compose BOM before this phase) are incompatible with
+  AGP 8.7.3's Lint. Fix: upgrade AGP, or add `lint { disable += "NullSafeMutableLiveData" }`.
+
+### 8.6 Known limitations / next steps
+
+- **No coordinates on saved entries.** `OnSaveToLog` sends `coordinates = null` because location
+  capture (`:features:map` / Fused Location) is not wired yet.
+- **TTS button is a disabled placeholder.**
+- **ViewModel error messages are English constants (§7.4).** They appear inside a Spanish UI
+  until they move to string resources (`UiText`).
+- **No reduced-motion check.** The pulse animation does not yet respect the system "remove
+  animations" setting.
+- **No navigation yet.** `MainActivity` shows `TranslatorRoute` directly; a `NavHost` comes
+  once other features have screens.
+- **The catalog's `lifecycleRuntimeKtx` was raised from 2.6.1 to 2.9.4.** This matches what
+  Gradle already resolved, so there is no runtime change, and it lets the build use the
+  lifecycle-compose APIs above.
