@@ -44,6 +44,13 @@ dependencies {
 
     // Corrutinas
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+
+    // Offline speech-to-text (pulls the JNA .aar with its native libs transitively)
+    implementation(libs.vosk.android)
+
+    // On-device translation
+    implementation(libs.mlkit.translate)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
