@@ -2,6 +2,7 @@
 build/
 **/build/
 .gradle/
+.kotlin/
 *.class
 
 # Configuración local de SDK y dispositivo (nunca debe subirse)

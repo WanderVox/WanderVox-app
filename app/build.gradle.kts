@@ -6,6 +6,12 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// El plugin de Google Services necesita app/google-services.json (se descarga desde la
+// consola de Firebase). Se aplica solo si el archivo existe para no romper el build local.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+}
+
 android {
     namespace = "com.wandervox.app"
     compileSdk = 35
@@ -55,6 +61,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.navigation.compose)
 
     // Compose y AndroidX
     implementation(platform(libs.androidx.compose.bom))

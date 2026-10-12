@@ -1,0 +1,18 @@
+package com.wandervox.core.data.di
+
+import com.wandervox.core.data.auth.AuthRepositoryImpl
+import com.wandervox.core.domain.repository.AuthRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AuthModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
+}
