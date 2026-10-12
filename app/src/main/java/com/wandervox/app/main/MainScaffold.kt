@@ -1,5 +1,6 @@
 package com.wandervox.app.main
 
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material.icons.Icons
@@ -70,7 +71,11 @@ fun MainScaffold(
         NavHost(
             navController = navController,
             startDestination = MainTab.Translator.route,
-            modifier = Modifier.padding(innerPadding)
+            // consumeWindowInsets: las pantallas de cada pestaña pueden tener su propio Scaffold
+            // (ej. el Traductor); sin esto volverían a sumar el inset de la barra de estado.
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             composable(MainTab.Translator.route) {
                 translatorContent(Modifier)

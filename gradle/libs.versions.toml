@@ -27,7 +27,6 @@ ksp = "2.0.21-1.0.28"
 firebaseBom = "33.7.0"
 googleServices = "4.4.2"
 navigationCompose = "2.8.5"
-lifecycleCompose = "2.8.7"
 materialIconsExtended = "1.7.8"
 
 [libraries]
@@ -66,12 +65,10 @@ androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navig
 #firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
-kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
 
 #navegacion, lifecycle e iconos
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
-androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleCompose" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
 
 [plugins]
