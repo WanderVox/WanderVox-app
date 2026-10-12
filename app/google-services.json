@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "278214410651",
+    "project_id": "wandervox-d2ccb",
+    "storage_bucket": "wandervox-d2ccb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278214410651:android:899cdde0e276cef468a13e",
+        "android_client_info": {
+          "package_name": "com.wandervox.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFQGpY3VMCbFHMkyGobEL18pFn8QtuxBE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

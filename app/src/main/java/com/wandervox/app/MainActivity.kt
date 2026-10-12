@@ -10,6 +10,7 @@ import com.wandervox.core.ui.theme.WanderVoxTheme
 import com.wandervox.features.translator.presentation.TranslatorRoute
 import dagger.hilt.android.AndroidEntryPoint
 
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,13 +22,13 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             WanderVoxTheme {
-                // Single screen for now; replace with the NavHost once more features have UI.
-                TranslatorRoute()
+
+                WanderVoxNavHost()
             }
         }
     }
 }
-
+    
 // Same scrims androidx.activity uses by default; only visible with 3-button navigation.
 private val LightNavigationScrim = Color.argb(0xE6, 0xFF, 0xFF, 0xFF)
 private val DarkNavigationScrim = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
