@@ -51,14 +51,24 @@ class AuthRepositoryImpl @Inject constructor(
             .onFailure { if (it is CancellationException) throw it }
             .recoverCatching { throw AuthException(it.toUserMessage(), it) }
 
+    /**
+     * Usuario inexistente y contraseña errónea comparten mensaje a propósito: distinguirlos
+     * permitiría averiguar qué emails tienen cuenta (enumeración de usuarios).
+     */
     private fun Throwable.toUserMessage(): String = when (this) {
-        is FirebaseAuthWeakPasswordException -> "La contraseña debe tener al menos 6 caracteres."
+        is FirebaseAuthWeakPasswordException -> WEAK_PASSWORD_MESSAGE
         is FirebaseAuthUserCollisionException -> "Ya existe una cuenta con ese email."
-        is FirebaseAuthInvalidUserException -> "No encontramos una cuenta con ese email."
-        is FirebaseAuthInvalidCredentialsException -> "Email o contraseña incorrectos."
+        is FirebaseAuthInvalidUserException,
+        is FirebaseAuthInvalidCredentialsException -> INVALID_CREDENTIALS_MESSAGE
         is FirebaseNetworkException -> "Sin conexión. Revisá tu internet e intentá de nuevo."
         is FirebaseTooManyRequestsException -> "Demasiados intentos. Esperá unos minutos."
         else -> "Ocurrió un error inesperado. Intentá de nuevo."
+    }
+
+    private companion object {
+        const val INVALID_CREDENTIALS_MESSAGE = "Email o contraseña incorrectos."
+        const val WEAK_PASSWORD_MESSAGE =
+            "La contraseña debe tener al menos 8 caracteres, incluyendo al menos una letra y un número."
     }
 }
 

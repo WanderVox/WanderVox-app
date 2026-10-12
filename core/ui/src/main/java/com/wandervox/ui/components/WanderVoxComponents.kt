@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,13 +56,16 @@ private val ErrorColor = Color(0xFFB3261E)
 
 /** Logotipo tipográfico: "Wander" en texto primario y "Vox" resaltado en Forest. */
 @Composable
-fun WanderVoxLogo(modifier: Modifier = Modifier) {
+fun WanderVoxLogo(
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.headlineLarge
+) {
     Text(
         text = buildAnnotatedString {
             withStyle(SpanStyle(color = TextPrimary)) { append("Wander") }
             withStyle(SpanStyle(color = Forest)) { append("Vox") }
         },
-        style = MaterialTheme.typography.headlineLarge,
+        style = style,
         modifier = modifier
     )
 }
@@ -97,6 +102,26 @@ fun WanderVoxPrimaryButton(
         } else {
             Text(text = text, style = MaterialTheme.typography.labelLarge)
         }
+    }
+}
+
+/** Pista informativa bajo un campo, ej. los requisitos de la contraseña. */
+@Composable
+fun WanderVoxFieldHint(text: String, modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Info,
+            contentDescription = null,
+            tint = TextSecondary,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(text = text, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
     }
 }
 
@@ -232,6 +257,7 @@ private fun WanderVoxComponentsPreview() {
             WanderVoxPasswordField(value = "secreto", onValueChange = {}, label = "Contraseña")
             WanderVoxErrorMessage("Email o contraseña incorrectos.")
             WanderVoxPrimaryButton(text = "Iniciar sesión", onClick = {})
+            WanderVoxFieldHint(text = "Mínimo 8 caracteres, con letras y números.")
             WanderVoxTextLink(prompt = "¿No tenés cuenta?", action = "Registrate", onClick = {})
         }
     }

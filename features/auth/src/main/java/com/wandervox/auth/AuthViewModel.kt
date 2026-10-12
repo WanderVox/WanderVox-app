@@ -19,6 +19,8 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    // En login no se aplica la política de contraseñas: cuentas creadas antes de endurecerla
+    // tienen que poder seguir entrando.
     fun login(email: String, password: String) {
         val trimmedEmail = email.trim()
         val validationError = when {
@@ -35,8 +37,7 @@ class AuthViewModel @Inject constructor(
             trimmedEmail.isBlank() || password.isBlank() || confirmPassword.isBlank() ->
                 "Completá todos los campos."
             !trimmedEmail.isValidEmail() -> "Ingresá un email válido."
-            password.length < MIN_PASSWORD_LENGTH ->
-                "La contraseña debe tener al menos $MIN_PASSWORD_LENGTH caracteres."
+            !PASSWORD_REGEX.matches(password) -> PASSWORD_POLICY_MESSAGE
             password != confirmPassword -> "Las contraseñas no coinciden."
             else -> null
         }
@@ -66,7 +67,9 @@ class AuthViewModel @Inject constructor(
     private fun String.isValidEmail(): Boolean = EMAIL_REGEX.matches(this)
 
     private companion object {
-        const val MIN_PASSWORD_LENGTH = 6
+        const val PASSWORD_POLICY_MESSAGE =
+            "La contraseña debe tener al menos 8 caracteres, incluyendo al menos una letra y un número."
+        val PASSWORD_REGEX = Regex("^(?=.*[A-Za-z])(?=.*\\d).{8,}$")
         val EMAIL_REGEX = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wandervox.ui.components.WanderVoxErrorMessage
+import com.wandervox.ui.components.WanderVoxFieldHint
 import com.wandervox.ui.components.WanderVoxPasswordField
 import com.wandervox.ui.components.WanderVoxPrimaryButton
 import com.wandervox.ui.components.WanderVoxTextField
@@ -90,6 +91,7 @@ fun RegisterContent(
             imeAction = ImeAction.Next,
             enabled = !isLoading
         )
+        WanderVoxFieldHint(text = "Mínimo 8 caracteres, con al menos una letra y un número.")
         WanderVoxPasswordField(
             value = confirmPassword,
             onValueChange = onConfirmPasswordChange,
