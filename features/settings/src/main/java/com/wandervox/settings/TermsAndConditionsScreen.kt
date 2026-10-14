@@ -23,14 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.wandervox.ui.theme.Forest
-import com.wandervox.ui.theme.Neutral
-import com.wandervox.ui.theme.TextPrimary
-import com.wandervox.ui.theme.TextSecondary
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 private data class TermsClause(val title: String, val body: String)
 
@@ -81,7 +76,7 @@ fun TermsAndConditionsScreen(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        containerColor = Neutral,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(text = "Términos y Condiciones", style = MaterialTheme.typography.titleMedium) },
@@ -90,11 +85,11 @@ fun TermsAndConditionsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint = TextPrimary
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Neutral)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         modifier = modifier
@@ -110,22 +105,22 @@ fun TermsAndConditionsScreen(
                 Text(
                     text = TERMS_TITLE,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Forest,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                 )
             }
             items(TermsClauses) { clause ->
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        Text(text = clause.title, style = MaterialTheme.typography.labelMedium, color = TextPrimary)
-                        Text(text = clause.body, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text(text = clause.title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = clause.body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

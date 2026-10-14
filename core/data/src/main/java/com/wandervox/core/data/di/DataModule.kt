@@ -1,7 +1,7 @@
 package com.wandervox.core.data.di
 
 import com.wandervox.core.data.repository.InMemoryLogRepository
-import com.wandervox.domain.repository.LogRepository
+import com.wandervox.core.domain.repository.LogRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

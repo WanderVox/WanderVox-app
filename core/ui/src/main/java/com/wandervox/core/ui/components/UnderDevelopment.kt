@@ -1,4 +1,4 @@
-package com.wandervox.ui.components
+package com.wandervox.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,11 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wandervox.ui.theme.Forest
-import com.wandervox.ui.theme.Marigold
-import com.wandervox.ui.theme.TextPrimary
-import com.wandervox.ui.theme.TextSecondary
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 /** Etiqueta Marigold para marcar secciones que todavía no están disponibles. */
 @Composable
@@ -37,10 +33,10 @@ fun DevelopmentBadge(
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 12.sp),
-        color = TextPrimary,
+        color = MaterialTheme.colorScheme.onSurface,
         maxLines = 1,
         modifier = modifier
-            .background(Marigold, RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(50))
             .padding(horizontal = 6.dp, vertical = 1.dp)
     )
 }
@@ -68,12 +64,12 @@ fun UnderDevelopmentScreen(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(112.dp)
-                    .background(Forest.copy(alpha = 0.1f), CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Forest,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(52.dp)
                 )
             }
@@ -81,13 +77,13 @@ fun UnderDevelopmentScreen(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                color = TextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }

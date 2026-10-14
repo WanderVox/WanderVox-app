@@ -2,9 +2,9 @@ package com.wandervox.features.translator.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wandervox.domain.model.TravelLogEntry
-import com.wandervox.domain.repository.LogRepository
-import com.wandervox.domain.repository.TranslatorRepository
+import com.wandervox.core.domain.model.TravelLogEntry
+import com.wandervox.core.domain.repository.LogRepository
+import com.wandervox.core.domain.repository.TranslatorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow

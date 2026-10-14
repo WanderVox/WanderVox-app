@@ -54,7 +54,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,18 +63,14 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wandervox.ui.components.DevelopmentBadge
-import com.wandervox.ui.components.WanderVoxErrorMessage
-import com.wandervox.ui.components.WanderVoxSettingsDivider
-import com.wandervox.ui.components.WanderVoxSettingsItem
-import com.wandervox.ui.components.WanderVoxSettingsSection
-import com.wandervox.ui.components.WanderVoxSettingsSwitchItem
-import com.wandervox.ui.components.WanderVoxStatusChip
-import com.wandervox.ui.theme.Forest
-import com.wandervox.ui.theme.Neutral
-import com.wandervox.ui.theme.TextPrimary
-import com.wandervox.ui.theme.TextSecondary
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.components.DevelopmentBadge
+import com.wandervox.core.ui.components.WanderVoxErrorMessage
+import com.wandervox.core.ui.components.WanderVoxSettingsDivider
+import com.wandervox.core.ui.components.WanderVoxSettingsItem
+import com.wandervox.core.ui.components.WanderVoxSettingsSection
+import com.wandervox.core.ui.components.WanderVoxSettingsSwitchItem
+import com.wandervox.core.ui.components.WanderVoxStatusChip
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 /**
  * Contenedor con estado de Ajustes.
@@ -145,7 +140,7 @@ fun SettingsContent(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        containerColor = Neutral,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(text = "Ajustes", style = MaterialTheme.typography.titleLarge) },
@@ -154,11 +149,11 @@ fun SettingsContent(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint = TextPrimary
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Neutral)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         modifier = modifier
@@ -233,7 +228,7 @@ fun SettingsContent(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = TextSecondary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     )
@@ -253,7 +248,7 @@ private fun AccountCard(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -268,21 +263,21 @@ private fun AccountCard(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(56.dp)
-                        .background(Forest.copy(alpha = 0.1f), CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Person,
                         contentDescription = null,
-                        tint = Forest,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(text = "Tu cuenta", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                    Text(text = "Tu cuenta", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text(
                         text = email ?: "Sin email",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -295,13 +290,13 @@ private fun AccountCard(
                 onClick = onLogoutClick,
                 enabled = !isLoggingOut,
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Forest),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
                 if (isLoggingOut) {
-                    CircularProgressIndicator(color = Forest, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Logout,
@@ -354,15 +349,15 @@ private fun LogoutConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Uni
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(text = "Cerrar sesión", style = MaterialTheme.typography.labelMedium, color = Forest)
+                Text(text = "Cerrar sesión", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Cancelar", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Text(text = "Cancelar", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
     )
 }
 

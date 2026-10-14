@@ -31,6 +31,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    lint {
+        // lifecycle 2.9.x and Compose runtime 1.10.x ship these checks compiled against a newer
+        // Lint API than AGP 8.7.3, which crashes the lint run (IncompatibleClassChangeError).
+        // Drop once AGP >= 8.9.
+        disable += setOf("NullSafeMutableLiveData", "FrequentlyChangingValue", "RememberInComposition")
+    }
     buildFeatures {
         compose = true
     }
@@ -47,8 +53,6 @@ dependencies {
     implementation(libs.androidx.compose.material3)
 
     implementation(libs.androidx.compose.material.icons.extended)
-
-    implementation(libs.androidx.compose.ui.text.google.fonts)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

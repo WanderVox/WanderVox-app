@@ -2,35 +2,20 @@ package com.wandervox.core.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.DeviceFontFamilyName
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import com.wandervox.ui.R
 
-private val GoogleFontsProvider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs,
-)
-
-private val Poppins = GoogleFont("Poppins")
-
 /**
- * Poppins downloaded through Google Play services and cached by the system, so it adds nothing to
- * the APK. Compose tries fonts in order for each weight: if the download is unavailable (no Play
- * services, first launch offline) the device's sans-serif is used instead.
+ * Poppins bundled in `res/font` (about 476 KB), so typography is identical on every launch,
+ * including the first one without connectivity and on devices without Google Play services.
  */
 val PoppinsFontFamily = FontFamily(
-    Font(googleFont = Poppins, fontProvider = GoogleFontsProvider, weight = FontWeight.Normal),
-    Font(googleFont = Poppins, fontProvider = GoogleFontsProvider, weight = FontWeight.Medium),
-    Font(googleFont = Poppins, fontProvider = GoogleFontsProvider, weight = FontWeight.Bold),
-    Font(DeviceFontFamilyName("sans-serif"), weight = FontWeight.Normal),
-    Font(DeviceFontFamilyName("sans-serif-medium"), weight = FontWeight.Medium),
-    Font(DeviceFontFamilyName("sans-serif"), weight = FontWeight.Bold),
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_bold, FontWeight.Bold),
 )
 
 // Material 3 type scale sizes. Poppins is wide, so letter spacing is tighter than the baseline.

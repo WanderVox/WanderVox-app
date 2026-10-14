@@ -1,6 +1,6 @@
-package com.wandervox.domain.repository
+package com.wandervox.core.domain.repository
 
-import com.wandervox.domain.model.TravelLogEntry
+import com.wandervox.core.domain.model.TravelLogEntry
 import kotlinx.coroutines.flow.Flow
 
 interface LogRepository {

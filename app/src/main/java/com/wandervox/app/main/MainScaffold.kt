@@ -20,10 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.wandervox.ui.components.UnderDevelopmentScreen
-import com.wandervox.ui.components.WanderVoxLogo
-import com.wandervox.ui.theme.Neutral
-import com.wandervox.ui.theme.TextPrimary
+import com.wandervox.core.ui.components.UnderDevelopmentScreen
+import com.wandervox.core.ui.components.WanderVoxLogo
 
 /**
  * Contenedor principal tras el login: top bar, contenido de la pestaña activa y barra inferior.
@@ -44,7 +42,7 @@ fun MainScaffold(
     val selectedTab = MainTab.fromRoute(backStackEntry?.destination?.route) ?: MainTab.Translator
 
     Scaffold(
-        containerColor = Neutral,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { WanderVoxLogo(style = MaterialTheme.typography.titleLarge) },
@@ -53,11 +51,11 @@ fun MainScaffold(
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Ajustes",
-                            tint = TextPrimary
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Neutral)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         bottomBar = {

@@ -1,9 +1,9 @@
 package com.wandervox.features.translator.presentation
 
-import com.wandervox.domain.model.Coordinates
-import com.wandervox.domain.model.TravelLogEntry
-import com.wandervox.domain.repository.LogRepository
-import com.wandervox.domain.repository.TranslatorRepository
+import com.wandervox.core.domain.model.Coordinates
+import com.wandervox.core.domain.model.TravelLogEntry
+import com.wandervox.core.domain.repository.LogRepository
+import com.wandervox.core.domain.repository.TranslatorRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

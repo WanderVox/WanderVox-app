@@ -1,4 +1,4 @@
-package com.wandervox.domain.model
+package com.wandervox.core.domain.model
 
 data class Coordinates(
     val latitude: Double,

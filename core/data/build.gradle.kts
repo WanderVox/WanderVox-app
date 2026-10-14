@@ -32,6 +32,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    lint {
+        // lifecycle 2.9.x and Compose runtime 1.10.x ship these checks compiled against a newer
+        // Lint API than AGP 8.7.3, which crashes the lint run (IncompatibleClassChangeError).
+        // Drop once AGP >= 8.9.
+        disable += setOf("NullSafeMutableLiveData", "FrequentlyChangingValue", "RememberInComposition")
+    }
 }
 
 dependencies {

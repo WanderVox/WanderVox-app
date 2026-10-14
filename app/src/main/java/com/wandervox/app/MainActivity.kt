@@ -8,9 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.wandervox.app.navigation.WanderVoxNavHost
 import com.wandervox.core.ui.theme.WanderVoxTheme
-import com.wandervox.features.translator.presentation.TranslatorRoute
 import dagger.hilt.android.AndroidEntryPoint
-
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -23,7 +21,6 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             WanderVoxTheme {
-
                 WanderVoxNavHost()
             }
         }

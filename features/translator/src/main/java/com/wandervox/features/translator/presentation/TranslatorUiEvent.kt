@@ -1,6 +1,6 @@
 package com.wandervox.features.translator.presentation
 
-import com.wandervox.domain.model.Coordinates
+import com.wandervox.core.domain.model.Coordinates
 
 /** Every user intent the translator screen can send to [TranslatorViewModel]. */
 sealed interface TranslatorUiEvent {

@@ -1,4 +1,4 @@
-package com.wandervox.ui.components
+package com.wandervox.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,15 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.wandervox.ui.theme.Forest
-import com.wandervox.ui.theme.Nature
-import com.wandervox.ui.theme.TextPrimary
-import com.wandervox.ui.theme.TextSecondary
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 private val SectionShape = RoundedCornerShape(16.dp)
 
@@ -53,12 +48,12 @@ fun WanderVoxSettingsSection(
         Text(
             text = title,
             style = MaterialTheme.typography.labelMedium,
-            color = TextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 4.dp)
         )
         Card(
             shape = SectionShape,
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
             modifier = Modifier.fillMaxWidth()
         ) {
             content()
@@ -92,10 +87,10 @@ fun WanderVoxSettingsItem(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(40.dp)
-                .background(Forest.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                 .alpha(if (enabled) 1f else 0.5f)
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = Forest, modifier = Modifier.size(22.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
         }
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -103,9 +98,9 @@ fun WanderVoxSettingsItem(
                 .weight(1f)
                 .alpha(if (enabled) 1f else 0.6f)
         ) {
-            Text(text = title, style = MaterialTheme.typography.labelMedium, color = TextPrimary)
+            Text(text = title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
             if (subtitle != null) {
-                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         trailing?.invoke()
@@ -136,8 +131,8 @@ fun WanderVoxSettingsSwitchItem(
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Nature
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.secondary
                 )
             )
         }
@@ -148,7 +143,7 @@ fun WanderVoxSettingsSwitchItem(
 @Composable
 fun WanderVoxSettingsDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
-        color = TextSecondary.copy(alpha = 0.15f),
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
         modifier = modifier.padding(start = 72.dp)
     )
 }
@@ -160,7 +155,7 @@ fun WanderVoxStatusChip(
     isPositive: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val color = if (isPositive) Forest else TextSecondary
+    val color = if (isPositive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall,

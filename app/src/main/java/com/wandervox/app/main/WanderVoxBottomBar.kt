@@ -11,11 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.wandervox.ui.components.DevelopmentBadge
-import com.wandervox.ui.theme.Forest
-import com.wandervox.ui.theme.Neutral
-import com.wandervox.ui.theme.TextSecondary
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.components.DevelopmentBadge
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 @Composable
 fun WanderVoxBottomBar(
@@ -24,7 +21,7 @@ fun WanderVoxBottomBar(
     modifier: Modifier = Modifier
 ) {
     NavigationBar(
-        containerColor = Neutral,
+        containerColor = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
         modifier = modifier
     ) {
@@ -43,11 +40,11 @@ fun WanderVoxBottomBar(
                 },
                 label = { Text(text = tab.label, style = MaterialTheme.typography.labelMedium) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Forest,
-                    selectedTextColor = Forest,
-                    indicatorColor = Forest.copy(alpha = 0.12f),
-                    unselectedIconColor = TextSecondary,
-                    unselectedTextColor = TextSecondary
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
         }

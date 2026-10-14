@@ -12,7 +12,7 @@ import com.wandervox.core.network.model.UnsupportedLanguageException
 import com.wandervox.core.network.speech.VoskModelManager
 import com.wandervox.core.network.translation.MlKitTranslatorClient
 import com.wandervox.core.network.util.runSuspendCatching
-import com.wandervox.domain.repository.TranslatorRepository
+import com.wandervox.core.domain.repository.TranslatorRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
