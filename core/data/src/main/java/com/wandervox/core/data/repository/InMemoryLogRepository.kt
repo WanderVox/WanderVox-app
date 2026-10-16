@@ -26,6 +26,9 @@ class InMemoryLogRepository @Inject constructor() : LogRepository {
     override fun getCommunityEntries(): Flow<List<TravelLogEntry>> =
         entries.map { all -> all.filter { it.isPublic }.sortedByDescending { it.timestamp } }
 
+    override fun getEntry(entryId: String): Flow<TravelLogEntry?> =
+        entries.map { all -> all.firstOrNull { it.id == entryId } }
+
     override suspend fun saveEntry(entry: TravelLogEntry): Result<Unit> {
         val storedEntry = if (entry.id.isBlank()) entry.copy(id = UUID.randomUUID().toString()) else entry
         entries.update { all -> all.filterNot { it.id == storedEntry.id } + storedEntry }
@@ -46,6 +49,9 @@ class InMemoryLogRepository @Inject constructor() : LogRepository {
         }
         return if (found) Result.success(Unit) else Result.failure(entryNotFound(entryId))
     }
+
+    // Nothing to upload: this placeholder has no remote store.
+    override suspend fun syncPending(): Result<Unit> = Result.success(Unit)
 
     private fun updateExisting(entryId: String, transform: (TravelLogEntry) -> TravelLogEntry): Result<Unit> {
         var found = false

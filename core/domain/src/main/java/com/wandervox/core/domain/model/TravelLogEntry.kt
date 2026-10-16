@@ -16,8 +16,13 @@ data class TravelLogEntry(
     val coordinates: Coordinates? = null,
     val localPhotoPath: String? = null,
     val remotePhotoUrl: String? = null,
-    val category: String = "General",
+    val category: LogCategory = LogCategory.GENERAL,
     val notes: String = "",
     val isPublic: Boolean = false,
-    val likes: List<String> = emptyList()
+    val likes: List<String> = emptyList(),
+    /** Display name shown on the Community tab. */
+    val authorName: String? = null,
+    /** Last modification time, used for last-write-wins conflict resolution. */
+    val updatedAt: Long = timestamp,
+    val syncStatus: SyncStatus = SyncStatus.PENDING
 )

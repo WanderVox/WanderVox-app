@@ -58,9 +58,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wandervox.core.domain.model.LogCategory
 import com.wandervox.core.ui.theme.WanderVoxTheme
 import com.wandervox.features.translator.presentation.components.LanguageSelectorBar
-import com.wandervox.features.translator.presentation.components.LogCategory
 import com.wandervox.features.translator.presentation.components.MicButton
 import com.wandervox.features.translator.presentation.components.RecognizedTextCard
 import com.wandervox.features.translator.presentation.components.SaveToLogSheet
@@ -167,7 +167,7 @@ fun TranslatorRoute(
         onConfirmSave = { category, notes ->
             isSaveSheetVisible = false
             // Location capture is not wired yet; the entry is saved without coordinates.
-            viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category.storageKey, notes, coordinates = null))
+            viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes, coordinates = null))
         },
         modifier = modifier,
     )

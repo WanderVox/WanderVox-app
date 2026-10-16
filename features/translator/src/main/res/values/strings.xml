@@ -33,6 +33,7 @@
     <string name="translator_category_lodging">Alojamiento</string>
     <string name="translator_category_shopping">Compras</string>
     <string name="translator_category_emergency">Emergencia</string>
+    <string name="translator_category_general">General</string>
 
     <string name="translator_mic_permission_denied">Necesitamos el micrófono para escucharte y traducir.</string>
     <string name="translator_mic_permission_settings">Activá el permiso de micrófono en Ajustes para usar el traductor.</string>

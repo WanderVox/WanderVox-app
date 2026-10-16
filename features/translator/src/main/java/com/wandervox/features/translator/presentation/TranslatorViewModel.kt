@@ -130,7 +130,7 @@ class TranslatorViewModel @Inject constructor(
             targetLanguage = languages.targetLanguage,
             timestamp = System.currentTimeMillis(),
             coordinates = event.coordinates,
-            category = event.category.trim().ifEmpty { DEFAULT_CATEGORY },
+            category = event.category,
             notes = event.notes.trim(),
         )
 
@@ -151,7 +151,6 @@ class TranslatorViewModel @Inject constructor(
         const val STOP_TIMEOUT_MILLIS = 5_000L
         const val DEFAULT_SOURCE_LANGUAGE = "ES"
         const val DEFAULT_TARGET_LANGUAGE = "EN"
-        const val DEFAULT_CATEGORY = "General"
 
         // TODO: move to string resources (UiText) once the screen is localized.
         const val MODELS_UNAVAILABLE_MESSAGE =

@@ -1,6 +1,8 @@
 package com.wandervox.features.translator.presentation
 
 import com.wandervox.core.domain.model.Coordinates
+import com.wandervox.core.domain.model.LogCategory
+import com.wandervox.core.domain.model.SyncStatus
 import com.wandervox.core.domain.model.TravelLogEntry
 import com.wandervox.core.domain.repository.LogRepository
 import com.wandervox.core.domain.repository.TranslatorRepository
@@ -122,14 +124,15 @@ class TranslatorViewModelTest {
         translatorRepository.translated.value = "Where is the station?"
         val coordinates = Coordinates(latitude = -34.6, longitude = -58.4)
 
-        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = "  ", notes = " Ask twice ", coordinates))
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.TRANSPORT, notes = " Ask twice ", coordinates))
 
         val saved = logRepository.savedEntries.single()
         assertEquals("¿Dónde está la estación?", saved.originalText)
         assertEquals("Where is the station?", saved.translatedText)
         assertEquals("ES", saved.sourceLanguage)
         assertEquals("EN", saved.targetLanguage)
-        assertEquals("General", saved.category)
+        assertEquals(LogCategory.TRANSPORT, saved.category)
+        assertEquals(SyncStatus.PENDING, saved.syncStatus)
         assertEquals("Ask twice", saved.notes)
         assertEquals(coordinates, saved.coordinates)
         assertTrue(viewModel.uiState.value.isSavedSuccess)
@@ -142,7 +145,7 @@ class TranslatorViewModelTest {
     fun `save without recognized text shows an error and persists nothing`() = runTest {
         val viewModel = createSubscribedViewModel()
 
-        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = "Food", notes = "", coordinates = null))
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = "", coordinates = null))
 
         assertTrue(logRepository.savedEntries.isEmpty())
         assertNotNull(viewModel.uiState.value.errorMessage)
@@ -157,7 +160,7 @@ class TranslatorViewModelTest {
         val viewModel = createSubscribedViewModel()
         translatorRepository.recognized.value = "Hola"
 
-        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = "Food", notes = "", coordinates = null))
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = "", coordinates = null))
 
         assertFalse(viewModel.uiState.value.isSavedSuccess)
         assertNotNull(viewModel.uiState.value.errorMessage)
@@ -216,6 +219,7 @@ class TranslatorViewModelTest {
 
         override fun getUserEntries(userId: String): Flow<List<TravelLogEntry>> = emptyFlow()
         override fun getCommunityEntries(): Flow<List<TravelLogEntry>> = emptyFlow()
+        override fun getEntry(entryId: String): Flow<TravelLogEntry?> = emptyFlow()
 
         override suspend fun saveEntry(entry: TravelLogEntry): Result<Unit> {
             if (saveResult.isSuccess) savedEntries += entry
@@ -224,5 +228,6 @@ class TranslatorViewModelTest {
 
         override suspend fun toggleLike(entryId: String, userId: String): Result<Unit> = Result.success(Unit)
         override suspend fun deleteEntry(entryId: String): Result<Unit> = Result.success(Unit)
+        override suspend fun syncPending(): Result<Unit> = Result.success(Unit)
     }
 }
