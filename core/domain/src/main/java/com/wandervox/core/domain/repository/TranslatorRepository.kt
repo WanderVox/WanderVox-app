@@ -1,4 +1,4 @@
-package com.wandervox.domain.repository
+package com.wandervox.core.domain.repository
 
 import kotlinx.coroutines.flow.StateFlow
 

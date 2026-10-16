@@ -15,12 +15,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.wandervox.auth.LoginScreen
 import com.wandervox.auth.RegisterScreen
+import com.wandervox.features.translator.presentation.TranslatorRoute
 import com.wandervox.app.BuildConfig
 import com.wandervox.app.main.MainScaffold
-import com.wandervox.app.main.MainTab
 import com.wandervox.settings.SettingsScreen
 import com.wandervox.settings.TermsAndConditionsScreen
-import com.wandervox.ui.components.UnderDevelopmentScreen
 
 private object Routes {
     const val LOGIN = "login"
@@ -76,16 +75,7 @@ fun WanderVoxNavHost(
         }
         composable(Routes.HOME) {
             MainScaffold(
-                // TODO: cuando feat/lau-voice-implementation llegue a main, reemplazar por:
-                //  translatorContent = { modifier -> TranslatorRoute(modifier = modifier) }
-                translatorContent = { modifier ->
-                    UnderDevelopmentScreen(
-                        title = MainTab.Translator.label,
-                        icon = MainTab.Translator.icon,
-                        message = "El traductor se está integrando en esta versión.",
-                        modifier = modifier
-                    )
-                },
+                translatorContent = { modifier -> TranslatorRoute(modifier = modifier) },
                 onNavigateToSettings = {
                     navController.navigate(Routes.SETTINGS) { launchSingleTop = true }
                 }

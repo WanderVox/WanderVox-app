@@ -1,5 +1,6 @@
 package com.wandervox.app.main
 
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material.icons.Icons
@@ -19,10 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.wandervox.ui.components.UnderDevelopmentScreen
-import com.wandervox.ui.components.WanderVoxLogo
-import com.wandervox.ui.theme.Neutral
-import com.wandervox.ui.theme.TextPrimary
+import com.wandervox.core.ui.components.UnderDevelopmentScreen
+import com.wandervox.core.ui.components.WanderVoxLogo
 
 /**
  * Contenedor principal tras el login: top bar, contenido de la pestaña activa y barra inferior.
@@ -43,7 +42,7 @@ fun MainScaffold(
     val selectedTab = MainTab.fromRoute(backStackEntry?.destination?.route) ?: MainTab.Translator
 
     Scaffold(
-        containerColor = Neutral,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { WanderVoxLogo(style = MaterialTheme.typography.titleLarge) },
@@ -52,11 +51,11 @@ fun MainScaffold(
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Ajustes",
-                            tint = TextPrimary
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Neutral)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         bottomBar = {
@@ -70,7 +69,11 @@ fun MainScaffold(
         NavHost(
             navController = navController,
             startDestination = MainTab.Translator.route,
-            modifier = Modifier.padding(innerPadding)
+            // consumeWindowInsets: las pantallas de cada pestaña pueden tener su propio Scaffold
+            // (ej. el Traductor); sin esto volverían a sumar el inset de la barra de estado.
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             composable(MainTab.Translator.route) {
                 translatorContent(Modifier)

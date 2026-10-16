@@ -1,7 +1,7 @@
 package com.wandervox.core.data.repository
 
-import com.wandervox.domain.model.TravelLogEntry
-import com.wandervox.domain.repository.LogRepository
+import com.wandervox.core.domain.model.TravelLogEntry
+import com.wandervox.core.domain.repository.LogRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map

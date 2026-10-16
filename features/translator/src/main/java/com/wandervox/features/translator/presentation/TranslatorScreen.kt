@@ -34,8 +34,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,7 +62,6 @@ import com.wandervox.core.ui.theme.WanderVoxTheme
 import com.wandervox.features.translator.presentation.components.LanguageSelectorBar
 import com.wandervox.features.translator.presentation.components.LogCategory
 import com.wandervox.features.translator.presentation.components.MicButton
-import com.wandervox.features.translator.presentation.components.OfflineBadge
 import com.wandervox.features.translator.presentation.components.RecognizedTextCard
 import com.wandervox.features.translator.presentation.components.SaveToLogSheet
 import com.wandervox.features.translator.presentation.components.TranslatedTextCard
@@ -192,17 +189,12 @@ fun TranslatorContent(
 ) {
     val canInteract = !uiState.isInitializingModels
 
+    // No top bar here: MainScaffold already provides the app-wide header (logo + settings).
+    // The Scaffold is kept for its SnackbarHost.
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.translator_title), style = MaterialTheme.typography.titleLarge) },
-                actions = { OfflineBadge(modifier = Modifier.padding(end = 16.dp)) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier

@@ -17,12 +17,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wandervox.ui.components.WanderVoxErrorMessage
-import com.wandervox.ui.components.WanderVoxPasswordField
-import com.wandervox.ui.components.WanderVoxPrimaryButton
-import com.wandervox.ui.components.WanderVoxTextField
-import com.wandervox.ui.components.WanderVoxTextLink
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.components.WanderVoxErrorMessage
+import com.wandervox.core.ui.components.WanderVoxPasswordField
+import com.wandervox.core.ui.components.WanderVoxPrimaryButton
+import com.wandervox.core.ui.components.WanderVoxTextField
+import com.wandervox.core.ui.components.WanderVoxTextLink
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 @Composable
 fun LoginScreen(

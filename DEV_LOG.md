@@ -688,3 +688,55 @@ flowchart TD
 - **The catalog's `lifecycleRuntimeKtx` was raised from 2.6.1 to 2.9.4.** This matches what
   Gradle already resolved, so there is no runtime change, and it lets the build use the
   lifecycle-compose APIs above.
+
+---
+
+## 9. Post-merge consolidation (`Fix/Fix_Merge`)
+
+**Date:** 2026-10-14 · **Source:** P0/P1 items of `PROJECT_STATUS_AUDIT.md`. No intended behaviour change.
+
+### 9.1 Single design system
+
+- `com.wandervox.core.ui.theme` is now the only theme. The second theme from the Auth branch
+  (`com.wandervox.ui.theme`: `Forest`, `Neutral`, `TextPrimary`… plus a second `WanderVoxTheme`)
+  was deleted.
+- Shared composables moved from `com.wandervox.ui.components` to `com.wandervox.core.ui.components`.
+- Hard-coded colours in `:core:ui`, `:app`, Auth and Settings now read `MaterialTheme.colorScheme`:
+  `Forest` → `primary`, `Nature` → `secondary`, `Marigold` → `tertiary`, `Neutral` → `background`,
+  `TextPrimary` → `onSurface`, `TextSecondary` → `onSurfaceVariant`, white containers →
+  `surfaceContainerLowest`, white content on Forest → `onPrimary`, `0xFFB3261E` → `error`.
+  The hex values are the same, so screens look the same; previews now match the device.
+
+### 9.2 Bundled Poppins replaces downloadable fonts (supersedes §6.2)
+
+- `PoppinsFontFamily` now loads `res/font/poppins_{regular,medium,bold}.ttf` (about 476 KB).
+- **Why:** the offline-first invariant. With the Google Fonts provider, the first launch without
+  connectivity, or a device without Play services, showed the system sans-serif. The TTFs were
+  already in the APK for the Auth previews, so the size saving of §6.2 no longer applied.
+- Removed: `ui-text-google-fonts` (module dependency and catalog entry), `font_certs.xml`, and the
+  `<queries>` provider entry in the `:core:ui` manifest. The system sans-serif fallback is no
+  longer needed because bundled fonts load synchronously.
+
+### 9.3 Single domain root
+
+All of `:core:domain` lives under `com.wandervox.core.domain` (`.model`, `.repository`).
+`TravelLogEntry`/`Coordinates`, `TranslatorRepository` and `LogRepository` moved from
+`com.wandervox.domain.*`; `logRepository.kt` was renamed to `LogRepository.kt`; the template
+`MyClass.kt` was deleted. Imports were updated in `:core:data`, `:core:network` and `:features:translator`.
+
+### 9.4 Lint and manifests
+
+- Every Android module disables `NullSafeMutableLiveData`, `FrequentlyChangingValue` and
+  `RememberInComposition`. These checks ship with lifecycle 2.9.x and Compose runtime 1.10.x, and
+  they are compiled against a newer Lint API than AGP 8.7.3. They crashed `lintDebug` with
+  `IncompatibleClassChangeError`. The two Compose checks only showed up once the lifecycle crash
+  stopped masking them. Remove the disables after upgrading AGP to 8.9 or later.
+- `:app` declares `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`, so the Settings location
+  row can actually be granted. (`:core:domain` is a JVM module and has no manifest.)
+- Removed the unused `TranslatorRoute` import from `MainActivity`.
+
+### 9.5 Verification
+
+`./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, 38/38 unit tests
+pass. `./gradlew lintDebug`: BUILD SUCCESSFUL (it previously crashed). Not checked on a device.
+

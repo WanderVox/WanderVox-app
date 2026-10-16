@@ -1,4 +1,4 @@
-package com.wandervox.ui.components
+package com.wandervox.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +34,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -46,13 +45,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.wandervox.ui.theme.Forest
-import com.wandervox.ui.theme.TextPrimary
-import com.wandervox.ui.theme.TextSecondary
-import com.wandervox.ui.theme.WanderVoxTheme
+import com.wandervox.core.ui.theme.WanderVoxTheme
 
 private val FieldShape = RoundedCornerShape(12.dp)
-private val ErrorColor = Color(0xFFB3261E)
 
 /** Logotipo tipográfico: "Wander" en texto primario y "Vox" resaltado en Forest. */
 @Composable
@@ -62,8 +57,8 @@ fun WanderVoxLogo(
 ) {
     Text(
         text = buildAnnotatedString {
-            withStyle(SpanStyle(color = TextPrimary)) { append("Wander") }
-            withStyle(SpanStyle(color = Forest)) { append("Vox") }
+            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) { append("Wander") }
+            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("Vox") }
         },
         style = style,
         modifier = modifier
@@ -84,10 +79,10 @@ fun WanderVoxPrimaryButton(
         enabled = enabled && !isLoading,
         shape = FieldShape,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Forest,
-            contentColor = Color.White,
-            disabledContainerColor = Forest.copy(alpha = 0.5f),
-            disabledContentColor = Color.White
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary
         ),
         modifier = modifier
             .fillMaxWidth()
@@ -95,7 +90,7 @@ fun WanderVoxPrimaryButton(
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 strokeWidth = 2.dp,
                 modifier = Modifier.size(22.dp)
             )
@@ -118,10 +113,10 @@ fun WanderVoxFieldHint(text: String, modifier: Modifier = Modifier) {
         Icon(
             imageVector = Icons.Outlined.Info,
             contentDescription = null,
-            tint = TextSecondary,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp)
         )
-        Text(text = text, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Text(text = text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -154,19 +149,19 @@ fun WanderVoxTextField(
         isError = isError,
         shape = FieldShape,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Forest,
-            focusedLabelColor = Forest,
-            focusedLeadingIconColor = Forest,
-            cursorColor = Forest,
-            unfocusedBorderColor = TextSecondary.copy(alpha = 0.4f),
-            unfocusedLabelColor = TextSecondary,
-            unfocusedLeadingIconColor = TextSecondary,
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
-            disabledContainerColor = Color.White,
-            errorContainerColor = Color.White,
-            focusedTextColor = TextPrimary,
-            unfocusedTextColor = TextPrimary
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            errorContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
         ),
         modifier = modifier.fillMaxWidth()
     )
@@ -196,7 +191,7 @@ fun WanderVoxPasswordField(
                 Icon(
                     imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                     contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
-                    tint = TextSecondary
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
@@ -216,11 +211,11 @@ fun WanderVoxErrorMessage(message: String, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
             .fillMaxWidth()
-            .background(ErrorColor.copy(alpha = 0.08f), FieldShape)
+            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f), FieldShape)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Icon(imageVector = Icons.Outlined.ErrorOutline, contentDescription = null, tint = ErrorColor)
-        Text(text = message, style = MaterialTheme.typography.bodyMedium, color = ErrorColor)
+        Icon(imageVector = Icons.Outlined.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+        Text(text = message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
     }
 }
 
@@ -238,9 +233,9 @@ fun WanderVoxTextLink(
         horizontalArrangement = Arrangement.Center,
         modifier = modifier.fillMaxWidth()
     ) {
-        Text(text = prompt, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+        Text(text = prompt, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextButton(onClick = onClick, enabled = enabled) {
-            Text(text = action, style = MaterialTheme.typography.labelMedium, color = Forest)
+            Text(text = action, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

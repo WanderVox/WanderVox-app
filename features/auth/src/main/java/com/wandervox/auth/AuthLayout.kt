@@ -18,9 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.wandervox.ui.components.WanderVoxLogo
-import com.wandervox.ui.theme.TextPrimary
-import com.wandervox.ui.theme.TextSecondary
+import com.wandervox.core.ui.components.WanderVoxLogo
 
 /** Estructura común de Login y Registro: logo, título, subtítulo y el formulario debajo. */
 @Composable
@@ -48,8 +46,8 @@ internal fun AuthLayout(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text(text = title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(modifier = Modifier.height(8.dp))
         content()
