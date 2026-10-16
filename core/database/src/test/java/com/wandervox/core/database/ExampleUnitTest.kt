@@ -1,4 +1,4 @@
-package com.wandervox.database
+package com.wandervox.core.database
 
 import org.junit.Test
 

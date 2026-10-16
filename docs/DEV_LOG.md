@@ -740,3 +740,88 @@ All of `:core:domain` lives under `com.wandervox.core.domain` (`.model`, `.repos
 `./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, 38/38 unit tests
 pass. `./gradlew lintDebug`: BUILD SUCCESSFUL (it previously crashed). Not checked on a device.
 
+
+
+---
+
+## 10. Day-0 Joint Consolidation & Contract Freeze
+
+**Date:** 2026-10-15 · **Source:** §4.1–§4.2 of `MAIN_READINESS_REPORT.md` · **Commit:** `c68af24` plus the
+namespace change below. The only intended UI change is a new "General" chip in the save sheet (§10.4).
+Details per file: `Refactor_Log.md`.
+
+### 10.1 Version catalog
+
+- **Removed** `appcompat` 1.6.1 and `material` 1.10.0, the XML Views artifacts. No module used them,
+  and keeping them in the catalog invited breaking the Compose-only invariant.
+- **Added (catalog only).** None of these is in the APK yet. Each track adds the `implementation(...)`
+  lines to its own module when its code lands.
+
+| Alias | Version | Owner → module | Why |
+|---|---|---|---|
+| `androidx-room-{runtime,ktx,compiler}` + plugin `androidx-room` | 2.6.1 | A → `:core:database` | Local source of truth for the Travel Log. `ktx` gives `suspend` DAOs and `Flow` queries. The plugin exports schemas for migrations. |
+| `firebase-firestore` | BOM 33.7.0 (25.1.1) | B → `:core:network/remote` | Remote sync and the Community feed. Its offline persistence queues writes made without a connection. |
+| `coil-compose` | 2.7.0 | B → `:features:log` | Async, cached thumbnails for log photos in Compose. |
+| `okhttp` | 4.12.0 | B → `:core:network/remote` | Unsigned Cloudinary uploads (§10.2). |
+| `osmdroid-android` | 6.1.18 (unchanged) | A → `:features:map` | Already present. |
+
+- **Room 2.6.1 rather than 2.7.x:** it works with KSP1 (`2.0.21-1.0.28`) and Kotlin 2.0.21 as they are,
+  so no kapt is needed. 2.7 moves to the KMP artifact layout and folds `room-ktx` into
+  `room-runtime`; that can be its own upgrade later.
+- **`firebase-firestore` rather than `-ktx`:** since BOM 32.5.0 the KTX APIs ship in the main
+  artifact, and the `-ktx` modules are deprecated.
+- **Coil 2.7.0 rather than Coil 3:** Coil 2 is Android/Compose-only and was built with Kotlin 1.9.
+  Coil 3 adds the KMP layout, a new group id and a separate network artifact, with no benefit here.
+
+### 10.2 OkHttp instead of `cloudinary-android`
+
+`cloudinary-android`, and even `cloudinary-android-core` 3.1.x, declares runtime dependencies on
+`androidx.appcompat:appcompat`, `com.google.android.material:material`, `legacy-support-v4` and
+`work-runtime`. Adding it would bring back, transitively, the View artifacts that §10.1 removes.
+We only need **unsigned uploads**, which are a single multipart
+`POST https://api.cloudinary.com/v1_1/<cloud>/image/upload` with an `upload_preset`. OkHttp covers
+that, and only a public preset name ships in the APK, never the API secret. Retries for failed uploads
+are handled by `LogRepository.syncPending()`, not by the SDK's WorkManager integration.
+
+### 10.3 Domain freeze (`:core:domain`)
+
+- **New** `model/SyncStatus` (`PENDING`, `SYNCED`, `FAILED`), `model/LogCategory` (`FOOD`,
+  `TRANSPORT`, `LODGING`, `SHOPPING`, `EMERGENCY`, `GENERAL`) and `repository/LocationRepository`
+  (`suspend fun getCurrentLocation(): Result<Coordinates>`).
+- **`TravelLogEntry`:** `category` changes from `String` to `LogCategory` (default `GENERAL`). Three fields are
+  added: `authorName: String?` (the label on the Community tab), `updatedAt: Long = timestamp`
+  (last-write-wins conflict resolution) and `syncStatus = PENDING`. Every existing field keeps
+  its default.
+- **`LogRepository`:** adds `getEntry(entryId): Flow<TravelLogEntry?>` (for the detail screen and
+  the map's marker-to-detail link) and `suspend fun syncPending(): Result<Unit>` (manual sync from Settings,
+  and upload retries).
+- **Why an enum for the category:** Room, Firestore, the Log filters and the Translator now share one
+  closed set. The enum **name** is what gets persisted, and labels stay in each feature's string
+  resources. The Translator's own `LogCategory(storageKey, labelRes)` enum was replaced by a
+  `LogCategory.labelRes` extension (`components/LogCategoryLabels.kt`).
+- **Purity:** `:core:domain` still only depends on `kotlin-stdlib` and `kotlinx-coroutines-core`, with no
+  Android or Firebase imports.
+- **Freeze rule:** any later change to these types touches A's Room entity and mappers *and*
+  B's Firestore mapping, so it needs a PR reviewed by both developers.
+
+### 10.4 Interim `InMemoryLogRepository`
+
+The temporary binding (§7.6) implements the two new methods. `getEntry` is a `map` over the
+in-memory list, and `syncPending` returns `Result.success(Unit)` because there is no remote store. It stays
+bound in `DataModule` until Track A's Room-backed `OfflineFirstLogRepository` replaces it. Track B
+builds the Log UI against it in the meantime. Side effects of the enum change in the Translator are a sixth
+"General" chip in the save sheet (the default is still "Comida"), and stored keys move from `"Food"` to
+`"FOOD"`. No migration is needed because nothing is persisted yet.
+
+### 10.5 `:core:database` namespace
+
+`com.wandervox.database` → `com.wandervox.core.database`, which matches `:core:data` and
+`:core:domain`. It was renamed while the module had no source code, so no imports changed. The template tests
+moved to `com/wandervox/core/database/`, and the instrumented test now expects
+`com.wandervox.core.database.test`. The manifest has no `package` attribute, so it needed no change.
+
+### 10.6 Verification
+
+`./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, 38/38 unit tests
+pass (the `:core:database` template test now reports as `com.wandervox.core.database.ExampleUnitTest`).
+`./gradlew :core:domain:build`: BUILD SUCCESSFUL. Not checked on a device, and `lintDebug` was not re-run.

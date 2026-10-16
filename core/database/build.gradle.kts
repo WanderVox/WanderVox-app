@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.wandervox.database"
+    namespace = "com.wandervox.core.database"
     compileSdk = 35
 
     defaultConfig {
