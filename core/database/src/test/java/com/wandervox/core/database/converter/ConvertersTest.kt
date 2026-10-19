@@ -1,5 +1,6 @@
 package com.wandervox.core.database.converter
 
+import com.wandervox.core.database.entity.TravelLogEntity
 import com.wandervox.core.domain.model.LogCategory
 import com.wandervox.core.domain.model.SyncStatus
 import org.junit.Assert.assertEquals
@@ -43,6 +44,12 @@ class ConvertersTest {
         SyncStatus.entries.forEach {
             assertEquals(it, converters.toSyncStatus(converters.fromSyncStatus(it)))
         }
+    }
+
+    @Test
+    fun syncStatus_sqlConstants_matchStoredEnumNames() {
+        assertEquals(converters.fromSyncStatus(SyncStatus.SYNCED), TravelLogEntity.SYNCED)
+        assertEquals(converters.fromSyncStatus(SyncStatus.PENDING_DELETE), TravelLogEntity.PENDING_DELETE)
     }
 
     @Test

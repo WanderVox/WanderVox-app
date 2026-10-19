@@ -4,11 +4,14 @@ import com.wandervox.core.database.mapper.asEntity
 import com.wandervox.core.domain.model.SyncStatus
 import com.wandervox.core.domain.model.TravelLogEntry
 import com.wandervox.core.domain.model.User
+import com.wandervox.core.network.remote.log.LogRemoteDataSource
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -19,6 +22,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.FileNotFoundException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OfflineFirstLogRepositoryTest {
@@ -263,8 +267,194 @@ class OfflineFirstLogRepositoryTest {
         assertEquals(Triple("other", "uid-2", false), remote.likeCalls.single())
     }
 
+    // --- upload resiliency ---
+
     @Test
-    fun deleteEntry_removesLocallyAndRemotely() = runTest {
+    fun slowUpload_withinTwoMinutes_succeeds() = runTest {
+        uploader.delayMillis = 90_000L // would have hit the old 30 s budget
+
+        repository().saveEntry(translatorEntry.copy(localPhotoPath = "/p.jpg")).getOrThrow()
+        advanceUntilIdle()
+
+        assertEquals(SyncStatus.SYNCED, dao.row("e1")!!.syncStatus)
+        assertEquals("https://cdn.example/photo.jpg", dao.row("e1")!!.remotePhotoUrl)
+    }
+
+    @Test
+    fun uploadOverTwoMinutes_timesOutAsFailed_withoutUpsert() = runTest {
+        uploader.delayMillis = 121_000L
+
+        repository().saveEntry(translatorEntry.copy(localPhotoPath = "/p.jpg")).getOrThrow()
+        advanceUntilIdle()
+
+        assertEquals(SyncStatus.FAILED, dao.row("e1")!!.syncStatus)
+        assertTrue(remote.upserted.isEmpty())
+    }
+
+    @Test
+    fun missingPhotoFile_dropsPath_andSyncsEntryWithoutPhoto() = runTest {
+        uploader.result = Result.failure(FileNotFoundException("/gone.jpg"))
+        val repo = repository()
+
+        repo.saveEntry(translatorEntry.copy(localPhotoPath = "/gone.jpg")).getOrThrow()
+        advanceUntilIdle()
+
+        val row = dao.row("e1")!!
+        assertNull(row.localPhotoPath)
+        assertNull(row.remotePhotoUrl)
+        assertEquals(SyncStatus.SYNCED, row.syncStatus)
+        assertNull(remote.upserted.single().localPhotoPath)
+    }
+
+    @Test
+    fun missingPhotoFile_upsertFails_retryDoesNotTryThePhotoAgain() = runTest {
+        uploader.result = Result.failure(FileNotFoundException("/gone.jpg"))
+        remote.onUpsert = { Result.failure(IllegalStateException("offline")) }
+        val repo = repository()
+        repo.saveEntry(translatorEntry.copy(localPhotoPath = "/gone.jpg")).getOrThrow()
+        advanceUntilIdle()
+        assertEquals(SyncStatus.FAILED, dao.row("e1")!!.syncStatus)
+        assertNull(dao.row("e1")!!.localPhotoPath)
+
+        remote.onUpsert = { Result.success(Unit) }
+        repo.syncPending().getOrThrow()
+
+        assertEquals(1, uploader.uploads.size)
+        assertEquals(SyncStatus.SYNCED, dao.row("e1")!!.syncStatus)
+    }
+
+    // --- remote pull (startUserSync) ---
+
+    private val remoteEntry = TravelLogEntry(
+        id = "r1", userId = "uid-1", originalText = "remote", updatedAt = 100L,
+        remotePhotoUrl = "https://cdn/r1.jpg", syncStatus = SyncStatus.SYNCED
+    )
+
+    private fun TestScope.startPull(repo: OfflineFirstLogRepository) {
+        backgroundScope.launch { repo.startUserSync("uid-1") }
+        runCurrent()
+    }
+
+    @Test
+    fun pull_freshInstall_insertsRemoteEntriesAsSynced() = runTest {
+        remote.userEntries.value = listOf(remoteEntry.copy(localPhotoPath = "/other/device.jpg"))
+        val repo = repository()
+
+        startPull(repo)
+
+        val row = dao.row("r1")!!
+        assertEquals("remote", row.originalText)
+        assertEquals(SyncStatus.SYNCED, row.syncStatus)
+        assertNull(row.localPhotoPath)
+        assertEquals(listOf("r1"), repo.getUserEntries("uid-1").first().map { it.id })
+    }
+
+    @Test
+    fun pull_remoteNewer_updatesRow_preservingLocalPhotoPath() = runTest {
+        dao.upsert(remoteEntry.copy(originalText = "old", updatedAt = 50L, localPhotoPath = "/files/r1.jpg").asEntity())
+        remote.userEntries.value = listOf(remoteEntry)
+
+        startPull(repository())
+
+        val row = dao.row("r1")!!
+        assertEquals("remote", row.originalText)
+        assertEquals(100L, row.updatedAt)
+        assertEquals("/files/r1.jpg", row.localPhotoPath)
+        assertEquals(SyncStatus.SYNCED, row.syncStatus)
+    }
+
+    @Test
+    fun pull_remoteOlder_isIgnored() = runTest {
+        dao.upsert(remoteEntry.copy(originalText = "local newer", updatedAt = 200L).asEntity())
+        remote.userEntries.value = listOf(remoteEntry)
+
+        startPull(repository())
+
+        assertEquals("local newer", dao.row("r1")!!.originalText)
+    }
+
+    @Test
+    fun pull_neverOverwritesUnsyncedLocalRows() = runTest {
+        val unsynced = listOf(SyncStatus.PENDING, SyncStatus.FAILED, SyncStatus.PENDING_DELETE)
+        unsynced.forEachIndexed { i, status ->
+            dao.upsert(remoteEntry.copy(id = "u$i", originalText = "local", updatedAt = 1L, syncStatus = status).asEntity())
+        }
+        remote.userEntries.value = unsynced.indices.map { i -> remoteEntry.copy(id = "u$i", updatedAt = 999L) }
+
+        startPull(repository())
+
+        unsynced.forEachIndexed { i, status ->
+            val row = dao.row("u$i")!!
+            assertEquals("local", row.originalText)
+            assertEquals(status, row.syncStatus)
+        }
+    }
+
+    @Test
+    fun pull_sameVersionWithNewLikes_refreshesLikes() = runTest {
+        dao.upsert(remoteEntry.asEntity())
+        remote.userEntries.value = listOf(remoteEntry.copy(likes = listOf("uid-9")))
+
+        startPull(repository())
+
+        assertEquals(listOf("uid-9"), dao.row("r1")!!.likes)
+    }
+
+    @Test
+    fun pull_appliesLaterRemoteChanges() = runTest {
+        remote.userEntries.value = listOf(remoteEntry)
+        startPull(repository())
+
+        remote.userEntries.value = listOf(remoteEntry.copy(notes = "edited on tablet", updatedAt = 300L))
+        runCurrent()
+
+        assertEquals("edited on tablet", dao.row("r1")!!.notes)
+    }
+
+    @Test
+    fun pull_doesNotResurrectEntryDeletedThisSession() = runTest {
+        dao.upsert(remoteEntry.asEntity())
+        val repo = repository()
+        repo.deleteEntry("r1").getOrThrow()
+        advanceUntilIdle()
+        assertNull(dao.row("r1"))
+
+        remote.userEntries.value = listOf(remoteEntry) // stale snapshot taken before the delete
+        startPull(repo)
+
+        assertNull(dao.row("r1"))
+    }
+
+    @Test
+    fun pull_remoteListenerError_returnsWithoutThrowing() = runTest {
+        val failingRemote = object : LogRemoteDataSource by remote {
+            override fun observeUserEntries(userId: String) = flow<List<TravelLogEntry>> { throw IllegalStateException("denied") }
+        }
+        val repo = OfflineFirstLogRepository(dao, failingRemote, uploader, FakeAuthRepository(user), appScope = this)
+
+        repo.startUserSync("uid-1") // completes instead of throwing
+        assertTrue(dao.rows.value.isEmpty())
+    }
+
+    // --- tombstone deletes ---
+
+    @Test
+    fun deleteEntry_hidesImmediately_asTombstone_untilRemoteConfirms() = runTest {
+        dao.upsert(translatorEntry.copy(userId = "uid-1", syncStatus = SyncStatus.SYNCED).asEntity())
+        val repo = repository()
+        val before = dao.row("e1")!!.updatedAt
+
+        repo.deleteEntry("e1").getOrThrow()
+
+        val tombstone = dao.row("e1")!!
+        assertEquals(SyncStatus.PENDING_DELETE, tombstone.syncStatus)
+        assertTrue(tombstone.updatedAt > before)
+        assertNull(repo.getEntry("e1").first())
+        assertTrue(repo.getUserEntries("uid-1").first().isEmpty())
+    }
+
+    @Test
+    fun deleteEntry_remoteConfirms_removesRow() = runTest {
         dao.upsert(translatorEntry.asEntity())
 
         repository().deleteEntry("e1").getOrThrow()
@@ -272,6 +462,61 @@ class OfflineFirstLogRepositoryTest {
 
         assertNull(dao.row("e1"))
         assertEquals(listOf("e1"), remote.deleted)
+    }
+
+    @Test
+    fun deleteEntry_offline_keepsTombstone_thenSyncPendingFinishesIt() = runTest {
+        dao.upsert(translatorEntry.asEntity())
+        remote.deleteResult = Result.failure(IllegalStateException("offline"))
+        val repo = repository()
+        repo.deleteEntry("e1").getOrThrow()
+        advanceUntilIdle()
+        assertEquals(SyncStatus.PENDING_DELETE, dao.row("e1")!!.syncStatus)
+
+        remote.deleteResult = Result.success(Unit)
+        repo.syncPending().getOrThrow()
+
+        assertNull(dao.row("e1"))
+    }
+
+    @Test
+    fun syncPending_tombstoneStillFailing_reportsFailure_andKeepsRow() = runTest {
+        dao.upsert(translatorEntry.copy(syncStatus = SyncStatus.PENDING_DELETE).asEntity())
+        remote.deleteResult = Result.failure(IllegalStateException("offline"))
+
+        assertTrue(repository().syncPending().exceptionOrNull() is SyncIncompleteException)
+        assertEquals(SyncStatus.PENDING_DELETE, dao.row("e1")!!.syncStatus)
+    }
+
+    @Test
+    fun deleteDuringUpload_remoteEndsDeleted_notResurrected() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        remote.onUpsert = { gate.await(); Result.success(Unit) }
+        val repo = repository()
+
+        repo.saveEntry(translatorEntry).getOrThrow()
+        runCurrent() // upload is waiting on the gate
+        repo.deleteEntry("e1").getOrThrow()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf("upsert:e1", "delete:e1"), remote.operations)
+        assertNull(dao.row("e1"))
+    }
+
+    @Test
+    fun deleteEntry_alreadyTombstoned_fails() = runTest {
+        dao.upsert(translatorEntry.copy(syncStatus = SyncStatus.PENDING_DELETE).asEntity())
+
+        assertTrue(repository().deleteEntry("e1").isFailure)
+    }
+
+    @Test
+    fun toggleLike_onTombstone_fails() = runTest {
+        dao.upsert(translatorEntry.copy(syncStatus = SyncStatus.PENDING_DELETE).asEntity())
+
+        assertTrue(repository().toggleLike("e1", "uid-2").isFailure)
+        assertTrue(remote.likeCalls.isEmpty())
     }
 
     @Test

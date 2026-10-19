@@ -23,26 +23,34 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wandervox.features.map.presentation.osm.OsmMapView
 import com.wandervox.map.R
 
-/** Stateful entry point: owns the ViewModel and hands plain state to [MapContent]. */
+/**
+ * Stateful entry point: owns the ViewModel and hands plain state to [MapContent].
+ *
+ * @param onMarkerClick receives the tapped entry's id (e.g. to open its detail screen). While `null`,
+ *   tapping a marker shows OSMDroid's default info bubble instead.
+ */
 @Composable
 fun MapScreen(
     modifier: Modifier = Modifier,
+    onMarkerClick: ((entryId: String) -> Unit)? = null,
     viewModel: MapViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    MapContent(uiState = uiState, modifier = modifier)
+    MapContent(uiState = uiState, onMarkerClick = onMarkerClick, modifier = modifier)
 }
 
 /** Stateless: the map is always shown (cached tiles work offline), with overlays for loading/empty. */
 @Composable
 fun MapContent(
     uiState: MapUiState,
+    onMarkerClick: ((entryId: String) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val mapDescription = stringResource(R.string.map_content_description)
     Box(modifier = modifier.fillMaxSize()) {
         OsmMapView(
             markers = uiState.markers,
+            onMarkerClick = onMarkerClick,
             modifier = Modifier
                 .fillMaxSize()
                 .semantics { contentDescription = mapDescription },
