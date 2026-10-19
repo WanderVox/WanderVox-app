@@ -6,5 +6,10 @@ enum class SyncStatus {
     PENDING,
     SYNCED,
     /** The last upload attempt failed; retried by `LogRepository.syncPending()`. */
-    FAILED
+    FAILED,
+    /**
+     * Deleted by the user but not yet confirmed deleted remotely (tombstone). Hidden from every read;
+     * the row is removed once `LogRepository.syncPending()` confirms the remote delete.
+     */
+    PENDING_DELETE
 }

@@ -32,6 +32,7 @@ import org.osmdroid.views.overlay.infowindow.InfoWindow
 @Composable
 internal fun OsmMapView(
     markers: List<MapMarker>,
+    onMarkerClick: ((entryId: String) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -76,12 +77,13 @@ internal fun OsmMapView(
 
     AndroidView(
         factory = { mapView },
-        update = { view -> view.renderMarkers(markers) },
+        // Re-runs after every recomposition, so markers always carry the latest click callback.
+        update = { view -> view.renderMarkers(markers, onMarkerClick) },
         modifier = modifier,
     )
 }
 
-private fun MapView.renderMarkers(markers: List<MapMarker>) {
+private fun MapView.renderMarkers(markers: List<MapMarker>, onMarkerClick: ((entryId: String) -> Unit)?) {
     InfoWindow.closeAllInfoWindowsOn(this)
     overlays.removeAll { it is Marker }
     markers.forEach { entry ->
@@ -92,6 +94,13 @@ private fun MapView.renderMarkers(markers: List<MapMarker>) {
                 title = entry.title
                 snippet = entry.snippet
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                if (onMarkerClick != null) {
+                    // Returning true consumes the tap, so OSMDroid's default info bubble is not shown.
+                    setOnMarkerClickListener { _, _ ->
+                        onMarkerClick(entry.id)
+                        true
+                    }
+                }
             }
         )
     }

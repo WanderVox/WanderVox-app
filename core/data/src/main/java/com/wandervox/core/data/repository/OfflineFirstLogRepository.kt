@@ -19,17 +19,20 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.FileNotFoundException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Room is the source of truth for the user's own entries; the remote store is a replica.
  *
- * Writes land in Room as [SyncStatus.PENDING] and return immediately. The upload (photo, then
- * document) runs on the [ApplicationScope] so the caller never waits on the network, which with
- * Firestore offline persistence could otherwise block until connectivity returns.
+ * Writes land in Room as [SyncStatus.PENDING] (or [SyncStatus.PENDING_DELETE] for deletes) and return
+ * immediately. The remote side (photo upload, document upsert or delete) runs on the [ApplicationScope]
+ * so the caller never waits on the network, which with Firestore offline persistence could otherwise
+ * block until connectivity returns.
  */
 @Singleton
 class OfflineFirstLogRepository @Inject constructor(
@@ -40,9 +43,13 @@ class OfflineFirstLogRepository @Inject constructor(
     @ApplicationScope private val appScope: CoroutineScope
 ) : LogRepository {
 
-    /** Entry ids currently being uploaded, so `saveEntry` and `syncPending` never upload the same one twice. */
+    /** Entry ids currently being synced, so `saveEntry`, `deleteEntry` and `syncPending` never race on one. */
     private val inFlight: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    /** Ids whose remote delete was confirmed this session; the remote merge never re-inserts them. */
+    private val confirmedDeletes: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    // Tombstones are filtered out by the DAO's observed queries.
     override fun getUserEntries(userId: String): Flow<List<TravelLogEntry>> =
         dao.observeUserEntries(userId).map { entities -> entities.map { it.asDomain() } }
 
@@ -64,8 +71,7 @@ class OfflineFirstLogRepository @Inject constructor(
             id = id,
             userId = user?.uid ?: entry.userId,
             authorName = if (user != null) user.email ?: DEFAULT_AUTHOR_NAME else entry.authorName,
-            // Strictly increasing per entry, so the compare-and-set in syncEntry detects every edit.
-            updatedAt = maxOf(System.currentTimeMillis(), (previous?.updatedAt ?: 0L) + 1),
+            updatedAt = nextUpdatedAt(previous?.updatedAt),
             syncStatus = SyncStatus.PENDING
         )
         dao.upsert(pending.asEntity())
@@ -74,6 +80,7 @@ class OfflineFirstLogRepository @Inject constructor(
 
     override suspend fun toggleLike(entryId: String, userId: String): Result<Unit> = runSuspendCatching {
         val local = dao.findById(entryId)
+        if (local?.syncStatus == SyncStatus.PENDING_DELETE) throw entryNotFound(entryId)
         // Community entries by other users are not in Room; read their current likes from the remote feed.
         val currentLikes = local?.likes
             ?: remote.observePublicEntries().first().firstOrNull { it.id == entryId }?.likes
@@ -88,70 +95,195 @@ class OfflineFirstLogRepository @Inject constructor(
         }
     }
 
+    /**
+     * Soft delete: the row becomes a [SyncStatus.PENDING_DELETE] tombstone (hidden from every read) and
+     * is removed only once the remote delete is confirmed, so an offline delete is never lost and a
+     * later remote pull cannot resurrect the entry.
+     */
     override suspend fun deleteEntry(entryId: String): Result<Unit> = runSuspendCatching {
-        dao.findById(entryId) ?: throw entryNotFound(entryId)
-        dao.delete(entryId)
-        // Best effort: a failed remote delete leaves an orphan document (no tombstones yet, see STAGE_2_REPORT).
-        appScope.launch { runSuspendCatching { remote.delete(entryId) } }
+        val local = dao.findById(entryId)
+            ?.takeUnless { it.syncStatus == SyncStatus.PENDING_DELETE }
+            ?: throw entryNotFound(entryId)
+        val tombstone = local.copy(syncStatus = SyncStatus.PENDING_DELETE, updatedAt = nextUpdatedAt(local.updatedAt))
+        dao.upsert(tombstone)
+        appScope.launch { runSuspendCatching { syncEntry(tombstone.asDomain()) } }
     }
 
+    /** Retries every unsynced entry: uploads for PENDING/FAILED, remote deletes for PENDING_DELETE. */
     override suspend fun syncPending(): Result<Unit> = runSuspendCatching {
-        val unsynced = dao.getEntriesBySyncStatus(listOf(SyncStatus.PENDING, SyncStatus.FAILED))
+        val unsynced = dao.getEntriesBySyncStatus(
+            listOf(SyncStatus.PENDING, SyncStatus.FAILED, SyncStatus.PENDING_DELETE)
+        )
         val failures = unsynced.count { !syncEntry(it.asDomain()) }
         if (failures > 0) throw SyncIncompleteException(failures, unsynced.size)
     }
 
     /**
-     * Uploads the photo (if not uploaded yet) and the document, then records the outcome in Room.
+     * Mirrors [uid]'s remote entries into Room (download on a fresh install, edits from other devices)
+     * until the calling coroutine is cancelled. Returns early if the remote listener fails (e.g.
+     * permission denied); `LogSyncCoordinator` starts it again on the next sign-in.
      *
-     * If the entry was edited while uploading, the newer version is synced right after: its own
-     * `saveEntry` call skipped the upload because this one was in flight.
+     * Remote deletions are not propagated: a listener served from an empty offline cache emits an
+     * empty list, which must not wipe local data.
+     */
+    suspend fun startUserSync(uid: String) {
+        remote.observeUserEntries(uid)
+            .catch { /* Listener failed; local data stays as is. */ }
+            .collect { remoteEntries -> mergeRemote(remoteEntries) }
+    }
+
+    /**
+     * Applies remote entries to Room. Local wins whenever it has unsynced work: rows that are PENDING,
+     * FAILED or PENDING_DELETE are never touched. Each write is an atomic compare-and-set, so an edit
+     * made while merging is not overwritten either.
+     */
+    private suspend fun mergeRemote(remoteEntries: List<TravelLogEntry>) {
+        val localById = remoteEntries.map { it.id }
+            .chunked(MAX_SQL_VARIABLES)
+            .flatMap { ids -> dao.getEntriesByIds(ids) }
+            .associateBy { it.id }
+        for (remoteEntry in remoteEntries) {
+            if (remoteEntry.id in confirmedDeletes) continue
+            val local = localById[remoteEntry.id]
+            when {
+                // New on this device. localPhotoPath is device-local, so a pulled entry has none.
+                local == null -> dao.insertIfAbsent(
+                    remoteEntry.copy(localPhotoPath = null, syncStatus = SyncStatus.SYNCED).asEntity()
+                )
+                local.syncStatus != SyncStatus.SYNCED -> Unit
+                remoteEntry.isNewerThan(local.asDomain()) -> remoteEntry.overwrite(expectedUpdatedAt = local.updatedAt)
+            }
+        }
+    }
+
+    /**
+     * Newer content, or the same version with changes to remote-owned fields: likes (written by other
+     * users through `setLiked`, which does not bump `updatedAt`) and the uploaded photo URL.
+     */
+    private fun TravelLogEntry.isNewerThan(local: TravelLogEntry): Boolean =
+        updatedAt > local.updatedAt ||
+            (updatedAt == local.updatedAt && (likes != local.likes || remotePhotoUrl != local.remotePhotoUrl))
+
+    /** Leaves the local `localPhotoPath` (cached image) and `syncStatus` untouched. */
+    private suspend fun TravelLogEntry.overwrite(expectedUpdatedAt: Long) {
+        dao.updateFromRemote(
+            id = id,
+            expectedUpdatedAt = expectedUpdatedAt,
+            userId = userId,
+            originalText = originalText,
+            translatedText = translatedText,
+            sourceLanguage = sourceLanguage,
+            targetLanguage = targetLanguage,
+            timestamp = timestamp,
+            latitude = coordinates?.latitude,
+            longitude = coordinates?.longitude,
+            remotePhotoUrl = remotePhotoUrl,
+            category = category,
+            notes = notes,
+            isPublic = isPublic,
+            likes = likes,
+            authorName = authorName,
+            updatedAt = updatedAt
+        )
+    }
+
+    /**
+     * Pushes one entry to the remote according to its status, then records the outcome in Room.
+     *
+     * If the row changed while syncing (an edit or a delete), the newer version is synced right after:
+     * its own call skipped the work because this one was in flight.
      *
      * @return `false` only when the attempt failed; an entry already being synced counts as success.
      */
     private suspend fun syncEntry(entry: TravelLogEntry): Boolean {
         if (!inFlight.add(entry.id)) return true
-        val (synced, rowsUpdated) = try {
-            uploadAndRecord(entry)
+        val outcome = try {
+            if (entry.syncStatus == SyncStatus.PENDING_DELETE) deleteRemotely(entry) else uploadAndRecord(entry)
         } finally {
             inFlight.remove(entry.id)
         }
-        if (rowsUpdated == 0) {
+        if (outcome.superseded) {
             val newer = dao.findById(entry.id)
-            if (newer != null && newer.syncStatus == SyncStatus.PENDING) return syncEntry(newer.asDomain())
+            if (newer != null && newer.syncStatus in RESYNC_STATUSES) return syncEntry(newer.asDomain())
         }
-        return synced
+        return outcome.succeeded
     }
 
-    /** @return whether the upload succeeded, and how many Room rows recorded the outcome (0 = row changed). */
-    private suspend fun uploadAndRecord(entry: TravelLogEntry): Pair<Boolean, Int> {
+    /**
+     * Uploads the photo (if not uploaded yet), then the document. Each step has its own timeout: a
+     * photo on a slow mobile link needs far longer than a Firestore write.
+     */
+    private suspend fun uploadAndRecord(entry: TravelLogEntry): SyncOutcome {
         var remotePhotoUrl = entry.remotePhotoUrl
-        // withTimeoutOrNull outside runSuspendCatching: the timeout is a CancellationException, which
-        // runSuspendCatching rethrows on purpose.
-        val synced = withTimeoutOrNull(SYNC_TIMEOUT_MILLIS) {
-            runSuspendCatching {
-                val localPhotoPath = entry.localPhotoPath
-                if (localPhotoPath != null && remotePhotoUrl == null) {
-                    remotePhotoUrl = imageUploader.upload(localPhotoPath).getOrThrow()
+        var localPhotoPath = entry.localPhotoPath
+        val synced = run {
+            val pathToUpload = localPhotoPath
+            if (pathToUpload != null && remotePhotoUrl == null) {
+                val upload = withRemoteTimeout(UPLOAD_TIMEOUT_MILLIS) { imageUploader.upload(pathToUpload) }
+                when {
+                    upload.isSuccess -> remotePhotoUrl = upload.getOrThrow()
+                    // The local copy is gone (cleared storage, deleted file): retrying can never succeed,
+                    // so drop the path and sync the entry without its photo instead of failing forever.
+                    upload.exceptionOrNull() is FileNotFoundException -> localPhotoPath = null
+                    else -> return@run false
                 }
-                remote.upsert(entry.copy(remotePhotoUrl = remotePhotoUrl, syncStatus = SyncStatus.SYNCED)).getOrThrow()
-            }.isSuccess
-        } ?: false
-        // The photo URL is kept even on failure, so a retry does not upload the same image again.
+            }
+            val document = entry.copy(
+                remotePhotoUrl = remotePhotoUrl,
+                localPhotoPath = localPhotoPath,
+                syncStatus = SyncStatus.SYNCED
+            )
+            withRemoteTimeout(REMOTE_WRITE_TIMEOUT_MILLIS) { remote.upsert(document) }.isSuccess
+        }
+        // The photo URL is kept even on failure, so a retry does not upload the same image again; a
+        // dropped (missing) photo path is persisted too, so a retry does not try it again either.
         val rowsUpdated = dao.updateSyncResult(
             id = entry.id,
             updatedAt = entry.updatedAt,
             status = if (synced) SyncStatus.SYNCED else SyncStatus.FAILED,
-            remotePhotoUrl = remotePhotoUrl
+            remotePhotoUrl = remotePhotoUrl,
+            localPhotoPath = localPhotoPath
         )
-        return synced to rowsUpdated
+        return SyncOutcome(succeeded = synced, superseded = rowsUpdated == 0)
     }
+
+    /** Deletes the document remotely; the tombstone is removed only once that is confirmed. */
+    private suspend fun deleteRemotely(entry: TravelLogEntry): SyncOutcome {
+        val deleted = withRemoteTimeout(REMOTE_WRITE_TIMEOUT_MILLIS) { remote.delete(entry.id) }.isSuccess
+        // On failure the tombstone simply stays for the next syncPending(); nothing to record.
+        if (!deleted) return SyncOutcome(succeeded = false, superseded = false)
+        val rowsDeleted = dao.deleteTombstone(entry.id, entry.updatedAt)
+        // A remote snapshot taken before the delete may still be merging; it must not re-insert the row.
+        if (rowsDeleted > 0) confirmedDeletes += entry.id
+        return SyncOutcome(succeeded = true, superseded = rowsDeleted == 0)
+    }
+
+    /**
+     * Runs a remote call, turning a thrown exception or a timeout into a failed [Result].
+     * withTimeoutOrNull sits outside runSuspendCatching: the timeout is a CancellationException,
+     * which runSuspendCatching rethrows on purpose.
+     */
+    private suspend fun <T> withRemoteTimeout(timeoutMillis: Long, call: suspend () -> Result<T>): Result<T> =
+        withTimeoutOrNull(timeoutMillis) { runSuspendCatching { call().getOrThrow() } }
+            ?: Result.failure(TimeoutException("No remote response within $timeoutMillis ms"))
+
+    /** Strictly increasing per entry, so every compare-and-set on `updatedAt` detects every change. */
+    private fun nextUpdatedAt(previous: Long?): Long = maxOf(System.currentTimeMillis(), (previous ?: 0L) + 1)
 
     private fun entryNotFound(entryId: String) = NoSuchElementException("No travel log entry with id '$entryId'")
 
+    /** [superseded]: the row changed while syncing, so the outcome was not recorded. */
+    private data class SyncOutcome(val succeeded: Boolean, val superseded: Boolean)
+
     private companion object {
-        const val SYNC_TIMEOUT_MILLIS = 30_000L
+        /** Photo upload (Cloudinary) on a slow mobile link. */
+        const val UPLOAD_TIMEOUT_MILLIS = 120_000L
+        /** Firestore write; a backstop: the data source already gives up after its own ack timeout. */
+        const val REMOTE_WRITE_TIMEOUT_MILLIS = 30_000L
         const val DEFAULT_AUTHOR_NAME = "WanderVox traveler"
+        val RESYNC_STATUSES = setOf(SyncStatus.PENDING, SyncStatus.PENDING_DELETE)
+        /** Below SQLite's 999 bound-variable limit on API < 30. */
+        const val MAX_SQL_VARIABLES = 500
     }
 }
 

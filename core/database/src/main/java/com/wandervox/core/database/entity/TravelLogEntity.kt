@@ -40,5 +40,10 @@ data class TravelLogEntity(
 ) {
     companion object {
         const val TABLE_NAME = "travel_logs"
+
+        // Stored values of SyncStatus (Converters persist enum names) for use inside @Query strings,
+        // which need compile-time constants. Kept in step with the enum by ConvertersTest.
+        const val SYNCED = "SYNCED"
+        const val PENDING_DELETE = "PENDING_DELETE"
     }
 }

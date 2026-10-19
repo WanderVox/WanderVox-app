@@ -169,7 +169,8 @@ private fun CategoryLabel(category: LogCategory) {
 private fun SyncStatusBadge(status: SyncStatus) {
     val colors = MaterialTheme.colorScheme
     when (status) {
-        SyncStatus.PENDING -> Pill(
+        // PENDING_DELETE never reaches the UI (the repository hides tombstones); grouped to stay exhaustive.
+        SyncStatus.PENDING, SyncStatus.PENDING_DELETE -> Pill(
             icon = Icons.Outlined.CloudUpload,
             text = stringResource(R.string.log_sync_pending),
             containerColor = colors.tertiaryContainer,
