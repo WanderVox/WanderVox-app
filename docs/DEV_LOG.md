@@ -825,3 +825,88 @@ moved to `com/wandervox/core/database/`, and the instrumented test now expects
 `./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, 38/38 unit tests
 pass (the `:core:database` template test now reports as `com.wandervox.core.database.ExampleUnitTest`).
 `./gradlew :core:domain:build`: BUILD SUCCESSFUL. Not checked on a device, and `lintDebug` was not re-run.
+
+---
+
+## 11. Track A — Room Persistence, Offline-First Sync, Location & Map
+
+Branch `feat/room-implementation`. Built in four stages, each verified with
+`./gradlew assembleDebug testDebugUnitTest` before moving on. The full write-ups are in
+`docs/STAGE_1_REPORT.md` … `docs/STAGE_4_REPORT.md`. This section summarizes the decisions that
+matter for evaluation.
+
+### 11.1 Stage 1 — Room foundation (`:core:database`)
+
+- `TravelLogEntity` (`travel_logs`) mirrors `TravelLogEntry`. Coordinates are flattened to nullable
+  `latitude`/`longitude`, and an entry has a location only when both are set. The client-generated
+  `id: String` is the primary key, so the same key is used in Room and as the Firestore document ID.
+- `TravelLogDao`: reactive `Flow` queries for user entries, public entries and a single entry, plus
+  suspend `upsert`, `delete`, `updateSyncStatus`, `getEntriesBySyncStatus` and `findById`.
+- Converters store enums by **name**, the value shared with Firestore, and fall back safely on unknown
+  values. An unknown `SyncStatus` reads as `PENDING`, so the entry is retried rather than lost.
+  `likes` is joined with the ASCII unit separator rather than JSON, because UIDs are alphanumeric.
+- Schema export is on (`core/database/schemas/`) and there is no destructive-migration fallback.
+  Silently wiping an offline-first store would lose unsynced entries.
+- **Library justification:** Room 2.6.1 with KSP1 (`room.generateKotlin = true`) gives compile-time
+  checked SQL and `Flow` queries without kapt (§10.1).
+
+### 11.2 Stage 2 — `OfflineFirstLogRepository` (`:core:data`)
+
+- Room is the source of truth for the user's own entries. `saveEntry` stamps the signed-in user
+  (**the `userId` bug fix**: Translator entries used to have no owner), writes the entry as `PENDING`,
+  and **returns**. The photo upload, Firestore upsert and `SYNCED`/`FAILED` marking then run on an
+  `@ApplicationScope` coroutine with a 30 s timeout. With Firestore offline persistence, waiting for
+  `set().await()` would block the UI for as long as the device is offline.
+- A compare-and-set on `updatedAt` (`updateSyncResult`) stops a slow upload from overwriting a newer
+  edit, and an in-flight set prevents double uploads. The newest version is always the one synced.
+- `getCommunityEntries` reads the remote feed and falls back to the public entries in Room when it
+  errors (invariant 5). `toggleLike` is optimistic and rolls back on failure.
+- Dev B's `LogRemoteDataSource`/`ImageUploader` are stubbed as interfaces in `:core:network`, with
+  placeholder bindings in `remote/placeholder/` that fail every call. **Delete that package when B's
+  branch merges.** Contract note for B: `upsert` must not overwrite `likes`.
+- `InMemoryLogRepository` (§10.4) has been deleted.
+
+### 11.3 Stage 3 — Location (`:core:data`, `:features:translator`)
+
+- `LocationRepositoryImpl` returns a last-known fix under 2 minutes old if there is one. Otherwise it
+  makes a one-shot `getCurrentLocation` request (fused > network > GPS, 10 s timeout) and falls back to
+  the last-known fix of any age. The result is wrapped in `Result<Coordinates>`.
+- **Library justification:** the platform `LocationManager` + `androidx.core` `LocationManagerCompat`
+  rather than `play-services-location`. That means no new dependency and no GMS requirement, and the
+  compat class covers the pre-API-30 path.
+- The Translator asks for FINE/COARSE permission when the save sheet is confirmed, and saves whatever
+  the answer is. The ViewModel attaches the coordinates, so the UI never calls a repository. The unused
+  `coordinates` field was removed from `OnSaveToLog`.
+
+### 11.4 Stage 4 — Map (`:features:map`)
+
+- `MapViewModel`: `currentUser.flatMapLatest { getUserEntries(uid) }`, keeping only entries that have
+  `coordinates`. `MapScreen` (stateful) → `MapContent` (stateless) → `OsmMapView` (`AndroidView`
+  interop with lifecycle forwarding and one-time marker framing).
+- **Library justification:** OSMDroid 6.1.18. It renders OpenStreetMap without an API key or Play
+  services and has a built-in SQLite tile cache, which fits the offline-first goal.
+- The tile cache lives in app-private `filesDir` (200 MB cap), so no storage permission is needed on
+  API 27–28 and the system won't purge it. The user agent is `context.packageName`, because AGP 8
+  library `BuildConfig` has no `APPLICATION_ID`. `CopyrightOverlay` provides the attribution required
+  by the OSM tile policy. `INTERNET` and `ACCESS_NETWORK_STATE` are declared in the module, because the
+  OSMDroid AAR declares neither.
+
+### 11.5 Verification
+
+`./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, **87/87** unit
+tests pass. That is 38 before this track plus 49 new ones: 11 database, 25 repository, 6 location
+provider selection, 1 Translator ViewModel and 6 Map ViewModel. Nothing has been run on a device, and
+`lintDebug` was not run.
+
+### 11.6 Open items
+
+| Item | Owner |
+|---|---|
+| Merge B's Firestore/Cloudinary implementations; delete `remote/placeholder/` | A + B |
+| `upsert` must not overwrite `likes` (contract) | B |
+| Trigger `syncPending()` automatically (WorkManager, `NetworkType.CONNECTED`) | A |
+| Delete tombstones (`SyncStatus` change → joint PR, §10.3) | A + B |
+| Pull remote user entries into Room (multi-device, Community detail) | A |
+| `authorName` is the email, which public posts expose; switch to a display name | A + B |
+| Marker tap → entry detail route, once Log detail exists | A + B |
+| DAO, `LocationRepositoryImpl` and `OsmMapView` tests (Robolectric / instrumented) | A |

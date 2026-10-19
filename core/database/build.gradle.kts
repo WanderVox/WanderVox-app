@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
 }
 
 android {
@@ -40,6 +41,15 @@ android {
     }
 }
 
+room {
+    // Exported schemas are versioned in git so future migrations can be written and tested.
+    schemaDirectory("$projectDir/schemas")
+}
+
+ksp {
+    arg("room.generateKotlin", "true")
+}
+
 dependencies {
     implementation(project(":core:domain"))
     implementation(libs.androidx.core.ktx)
@@ -50,6 +60,11 @@ dependencies {
 
     // Corrutinas
     implementation(libs.kotlinx.coroutines.core)
+
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
