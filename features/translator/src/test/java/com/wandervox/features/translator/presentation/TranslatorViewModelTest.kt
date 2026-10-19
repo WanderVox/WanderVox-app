@@ -4,6 +4,7 @@ import com.wandervox.core.domain.model.Coordinates
 import com.wandervox.core.domain.model.LogCategory
 import com.wandervox.core.domain.model.SyncStatus
 import com.wandervox.core.domain.model.TravelLogEntry
+import com.wandervox.core.domain.repository.LocationRepository
 import com.wandervox.core.domain.repository.LogRepository
 import com.wandervox.core.domain.repository.TranslatorRepository
 import kotlinx.coroutines.CompletableDeferred
@@ -33,6 +34,7 @@ class TranslatorViewModelTest {
 
     private val translatorRepository = FakeTranslatorRepository()
     private val logRepository = FakeLogRepository()
+    private val locationRepository = FakeLocationRepository()
 
     @Before
     fun setUp() {
@@ -123,8 +125,9 @@ class TranslatorViewModelTest {
         translatorRepository.recognized.value = " ¿Dónde está la estación? "
         translatorRepository.translated.value = "Where is the station?"
         val coordinates = Coordinates(latitude = -34.6, longitude = -58.4)
+        locationRepository.result = Result.success(coordinates)
 
-        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.TRANSPORT, notes = " Ask twice ", coordinates))
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.TRANSPORT, notes = " Ask twice "))
 
         val saved = logRepository.savedEntries.single()
         assertEquals("¿Dónde está la estación?", saved.originalText)
@@ -142,10 +145,22 @@ class TranslatorViewModelTest {
     }
 
     @Test
+    fun `save without location still persists the entry`() = runTest {
+        locationRepository.result = Result.failure(SecurityException("permission denied"))
+        val viewModel = createSubscribedViewModel()
+        translatorRepository.recognized.value = "Hola"
+
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = ""))
+
+        assertNull(logRepository.savedEntries.single().coordinates)
+        assertTrue(viewModel.uiState.value.isSavedSuccess)
+    }
+
+    @Test
     fun `save without recognized text shows an error and persists nothing`() = runTest {
         val viewModel = createSubscribedViewModel()
 
-        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = "", coordinates = null))
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = ""))
 
         assertTrue(logRepository.savedEntries.isEmpty())
         assertNotNull(viewModel.uiState.value.errorMessage)
@@ -160,7 +175,7 @@ class TranslatorViewModelTest {
         val viewModel = createSubscribedViewModel()
         translatorRepository.recognized.value = "Hola"
 
-        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = "", coordinates = null))
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = ""))
 
         assertFalse(viewModel.uiState.value.isSavedSuccess)
         assertNotNull(viewModel.uiState.value.errorMessage)
@@ -168,7 +183,7 @@ class TranslatorViewModelTest {
 
     /** Subscribes to uiState so SharingStarted.WhileSubscribed keeps it updated, as the UI would. */
     private fun TestScope.createSubscribedViewModel(): TranslatorViewModel {
-        val viewModel = TranslatorViewModel(translatorRepository, logRepository)
+        val viewModel = TranslatorViewModel(translatorRepository, logRepository, locationRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         return viewModel
     }
@@ -211,6 +226,11 @@ class TranslatorViewModelTest {
         }
 
         override fun release() = Unit
+    }
+
+    private class FakeLocationRepository : LocationRepository {
+        var result: Result<Coordinates> = Result.failure(IllegalStateException("no fix"))
+        override suspend fun getCurrentLocation(): Result<Coordinates> = result
     }
 
     private class FakeLogRepository : LogRepository {

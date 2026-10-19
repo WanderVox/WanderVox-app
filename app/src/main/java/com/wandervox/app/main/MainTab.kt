@@ -15,7 +15,7 @@ enum class MainTab(
 ) {
     Translator(route = "translator", label = "Traductor", icon = Icons.Outlined.Mic, inDevelopment = false),
     Log(route = "log", label = "Bitácora", icon = Icons.AutoMirrored.Outlined.MenuBook, inDevelopment = true),
-    Map(route = "map", label = "Mapa", icon = Icons.Outlined.Map, inDevelopment = true);
+    Map(route = "map", label = "Mapa", icon = Icons.Outlined.Map, inDevelopment = false);
 
     companion object {
         fun fromRoute(route: String?): MainTab? = entries.firstOrNull { it.route == route }

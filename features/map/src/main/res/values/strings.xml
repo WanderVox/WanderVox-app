@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="map_empty_title">Todavía no hay entradas con ubicación</string>
+    <string name="map_empty_body">Guardá una traducción con la ubicación activada y la vas a ver acá.</string>
+    <string name="map_content_description">Mapa con las entradas de tu bitácora</string>
+</resources>
