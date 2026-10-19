@@ -29,12 +29,14 @@ import com.wandervox.features.map.presentation.MapScreen
  * Es la parte con estado (back stack de pestañas); la barra en sí es [WanderVoxBottomBar].
  *
  * @param translatorContent contenido de la pestaña Traductor, provisto por quien arma la app.
+ * @param logContent contenido de la pestaña Bitácora, provisto por quien arma la app.
  * @param onNavigateToSettings abre Ajustes desde cualquier pestaña (ícono de engranaje).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScaffold(
     translatorContent: @Composable (Modifier) -> Unit,
+    logContent: @Composable (Modifier) -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
@@ -80,7 +82,7 @@ fun MainScaffold(
                 translatorContent(Modifier)
             }
             composable(MainTab.Log.route) {
-                UnderDevelopmentScreen(title = MainTab.Log.label, icon = MainTab.Log.icon)
+                logContent(Modifier)
             }
             composable(MainTab.Map.route) {
                 MapScreen()

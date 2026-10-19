@@ -31,6 +31,7 @@ materialIconsExtended = "1.7.8"
 room = "2.6.1"
 coil = "2.7.0"
 okhttp = "4.12.0"
+orgJson = "20240303"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -80,6 +81,8 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 #imagenes y subida a Cloudinary (unsigned upload por HTTP)
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+# Solo tests: implementación real de org.json para tests JVM (Android la provee en runtime)
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
