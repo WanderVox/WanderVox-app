@@ -44,6 +44,8 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:database"))
     implementation(project(":core:network"))
+    // LocationManagerCompat / ContextCompat for LocationRepositoryImpl
+    implementation(libs.androidx.core.ktx)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -58,6 +60,7 @@ dependencies {
     implementation(libs.firebase.auth)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

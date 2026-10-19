@@ -119,6 +119,17 @@ fun TranslatorRoute(
     }
     requestMicPermission = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
 
+    // A confirmed save waiting for the location permission answer. Saveable: the system dialog can
+    // outlive a configuration change. Pair, LogCategory and String are all Serializable.
+    var pendingSave by rememberSaveable { mutableStateOf<Pair<LogCategory, String>?>(null) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        // Saved either way: the location is optional, and the ViewModel skips it when the permission was denied.
+        pendingSave?.let { (category, notes) -> viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes)) }
+        pendingSave = null
+    }
+
     // Messages are consumed first, then shown on the screen's scope: resetting the flag changes the
     // effect key, which would otherwise cancel the snackbar that is being displayed.
     LaunchedEffect(uiState.isSavedSuccess) {
@@ -166,8 +177,15 @@ fun TranslatorRoute(
         onDismissSaveSheet = { isSaveSheetVisible = false },
         onConfirmSave = { category, notes ->
             isSaveSheetVisible = false
-            // Location capture is not wired yet; the entry is saved without coordinates.
-            viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes, coordinates = null))
+            if (context.hasLocationPermission()) {
+                viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes))
+            } else {
+                // Coarse is listed too: on Android 12+ the user may grant only approximate location.
+                pendingSave = category to notes
+                locationPermissionLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                )
+            }
         },
         modifier = modifier,
     )
@@ -282,6 +300,11 @@ fun TranslatorContent(
 
 private fun Context.hasRecordAudioPermission(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+private fun Context.hasLocationPermission(): Boolean =
+    listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION).any {
+        ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+    }
 
 private fun Context.openAppSettings() {
     startActivity(

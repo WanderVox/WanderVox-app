@@ -3,6 +3,7 @@ package com.wandervox.features.translator.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wandervox.core.domain.model.TravelLogEntry
+import com.wandervox.core.domain.repository.LocationRepository
 import com.wandervox.core.domain.repository.LogRepository
 import com.wandervox.core.domain.repository.TranslatorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class TranslatorViewModel @Inject constructor(
     private val translatorRepository: TranslatorRepository,
     private val logRepository: LogRepository,
+    private val locationRepository: LocationRepository,
 ) : ViewModel() {
 
     /** State owned by this screen; speech/translation state comes from the repository. */
@@ -129,13 +131,15 @@ class TranslatorViewModel @Inject constructor(
             sourceLanguage = languages.sourceLanguage,
             targetLanguage = languages.targetLanguage,
             timestamp = System.currentTimeMillis(),
-            coordinates = event.coordinates,
             category = event.category,
             notes = event.notes.trim(),
         )
 
+        // The entry is built before this suspends, so the saved text is what the user saw on confirm.
         saveJob = viewModelScope.launch {
-            logRepository.saveEntry(entry)
+            // Geotagging is best effort: without permission or a fix, the entry is saved without coordinates.
+            val coordinates = locationRepository.getCurrentLocation().getOrNull()
+            logRepository.saveEntry(entry.copy(coordinates = coordinates))
                 .onSuccess { presentationState.update { it.copy(isSavedSuccess = true) } }
                 .onFailure { presentationState.update { it.copy(errorMessage = SAVE_FAILED_MESSAGE) } }
         }

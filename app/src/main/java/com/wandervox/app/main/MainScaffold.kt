@@ -22,6 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.wandervox.core.ui.components.UnderDevelopmentScreen
 import com.wandervox.core.ui.components.WanderVoxLogo
+import com.wandervox.features.map.presentation.MapScreen
 
 /**
  * Contenedor principal tras el login: top bar, contenido de la pestaña activa y barra inferior.
@@ -84,7 +85,7 @@ fun MainScaffold(
                 logContent(Modifier)
             }
             composable(MainTab.Map.route) {
-                UnderDevelopmentScreen(title = MainTab.Map.label, icon = MainTab.Map.icon)
+                MapScreen()
             }
         }
     }

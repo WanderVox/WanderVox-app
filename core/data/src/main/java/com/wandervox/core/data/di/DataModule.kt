@@ -1,6 +1,8 @@
 package com.wandervox.core.data.di
 
-import com.wandervox.core.data.repository.InMemoryLogRepository
+import com.wandervox.core.data.location.LocationRepositoryImpl
+import com.wandervox.core.data.repository.OfflineFirstLogRepository
+import com.wandervox.core.domain.repository.LocationRepository
 import com.wandervox.core.domain.repository.LogRepository
 import dagger.Binds
 import dagger.Module
@@ -12,8 +14,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
 
-    // TODO: bind the persistent (Room/Firestore) implementation once available.
     @Binds
     @Singleton
-    abstract fun bindLogRepository(impl: InMemoryLogRepository): LogRepository
+    abstract fun bindLogRepository(impl: OfflineFirstLogRepository): LogRepository
+
+    // Unscoped: stateless, it only holds the application Context and a system service handle.
+    @Binds
+    abstract fun bindLocationRepository(impl: LocationRepositoryImpl): LocationRepository
 }
