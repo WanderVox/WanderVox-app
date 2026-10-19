@@ -1039,14 +1039,14 @@ unit tests (new: `LogEntryFirestoreMapperTest` 4, `CloudinaryImageUploaderTest` 
 through an OkHttp interceptor). Not checked against a live Firestore project or Cloudinary account.
 ---
 
-## 11. Track A — Room Persistence, Offline-First Sync, Location & Map
+## 16. Track A — Room Persistence, Offline-First Sync, Location & Map
 
 Branch `feat/room-implementation`. Built in four stages, each verified with
 `./gradlew assembleDebug testDebugUnitTest` before moving on. The full write-ups are in
 `docs/STAGE_1_REPORT.md` … `docs/STAGE_4_REPORT.md`. This section summarizes the decisions that
 matter for evaluation.
 
-### 11.1 Stage 1 — Room foundation (`:core:database`)
+### 16.1 Stage 1 — Room foundation (`:core:database`)
 
 - `TravelLogEntity` (`travel_logs`) mirrors `TravelLogEntry`. Coordinates are flattened to nullable
   `latitude`/`longitude`, and an entry has a location only when both are set. The client-generated
@@ -1061,7 +1061,7 @@ matter for evaluation.
 - **Library justification:** Room 2.6.1 with KSP1 (`room.generateKotlin = true`) gives compile-time
   checked SQL and `Flow` queries without kapt (§10.1).
 
-### 11.2 Stage 2 — `OfflineFirstLogRepository` (`:core:data`)
+### 16.2 Stage 2 — `OfflineFirstLogRepository` (`:core:data`)
 
 - Room is the source of truth for the user's own entries. `saveEntry` stamps the signed-in user
   (**the `userId` bug fix**: Translator entries used to have no owner), writes the entry as `PENDING`,
@@ -1077,7 +1077,7 @@ matter for evaluation.
   branch merges.** Contract note for B: `upsert` must not overwrite `likes`.
 - `InMemoryLogRepository` (§10.4) has been deleted.
 
-### 11.3 Stage 3 — Location (`:core:data`, `:features:translator`)
+### 16.3 Stage 3 — Location (`:core:data`, `:features:translator`)
 
 - `LocationRepositoryImpl` returns a last-known fix under 2 minutes old if there is one. Otherwise it
   makes a one-shot `getCurrentLocation` request (fused > network > GPS, 10 s timeout) and falls back to
@@ -1089,7 +1089,7 @@ matter for evaluation.
   the answer is. The ViewModel attaches the coordinates, so the UI never calls a repository. The unused
   `coordinates` field was removed from `OnSaveToLog`.
 
-### 11.4 Stage 4 — Map (`:features:map`)
+### 16.4 Stage 4 — Map (`:features:map`)
 
 - `MapViewModel`: `currentUser.flatMapLatest { getUserEntries(uid) }`, keeping only entries that have
   `coordinates`. `MapScreen` (stateful) → `MapContent` (stateless) → `OsmMapView` (`AndroidView`
@@ -1102,14 +1102,14 @@ matter for evaluation.
   by the OSM tile policy. `INTERNET` and `ACCESS_NETWORK_STATE` are declared in the module, because the
   OSMDroid AAR declares neither.
 
-### 11.5 Verification
+### 16.5 Verification
 
 `./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, **87/87** unit
 tests pass. That is 38 before this track plus 49 new ones: 11 database, 25 repository, 6 location
 provider selection, 1 Translator ViewModel and 6 Map ViewModel. Nothing has been run on a device, and
 `lintDebug` was not run.
 
-### 11.6 Open items
+### 16.6 Open items
 
 | Item | Owner |
 |---|---|
