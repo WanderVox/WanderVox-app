@@ -825,3 +825,215 @@ moved to `com/wandervox/core/database/`, and the instrumented test now expects
 `./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL, 0 Kotlin warnings, 38/38 unit tests
 pass (the `:core:database` template test now reports as `com.wandervox.core.database.ExampleUnitTest`).
 `./gradlew :core:domain:build`: BUILD SUCCESSFUL. Not checked on a device, and `lintDebug` was not re-run.
+
+
+
+---
+
+## 11. Track B — Stage 1: Wiring the Travel Log dependencies
+
+**Date:** 2026-10-19 · **Branch:** `Feat/Luc-Bitacora` · **Report:** `ETAPA_1_REPORTE.md`
+
+### 11.1 What changed
+
+The catalog entries from §10.1 now reach the modules that own them. The catalog itself and
+`:core:domain` are unchanged.
+
+| Module | Added | Purpose |
+|---|---|---|
+| `:features:log` | `coil-compose` 2.7.0 | Photo thumbnails on log cards (Stage 4). |
+| `:core:network` | `firebase-bom` 33.7.0 → `firebase-firestore` 25.1.1 | `LogRemoteDataSource` (Stage 5). |
+| `:core:network` | `kotlinx-coroutines-play-services` 1.8.1 | `Task.await()` for Firestore calls, the same way `:core:data` uses it for Auth. |
+| `:core:network` | `okhttp` 4.12.0 | Unsigned multipart upload to Cloudinary (§10.2). |
+
+### 11.2 Decisions
+
+- **Still no `cloudinary-android`.** The Track B plan names the SDK, but §10.2 still applies: it would
+  pull `appcompat`, `material` (Views), `legacy-support-v4` and `work-runtime` into the APK. OkHttp is
+  enough for an unsigned preset upload.
+- **Transitive View artifacts.** `androidx.appcompat:appcompat:1.6.1` was already on
+  `:app:debugRuntimeClasspath` before this change, through `com.google.mlkit:common` (ML Kit Translate).
+  Coil 2.7.0 adds only `appcompat-resources` (drawable inflation). No module uses either one from code,
+  and `com.google.android.material:material` is still absent.
+
+### 11.3 Verification
+
+`./gradlew help` and `./gradlew assembleDebug`: BUILD SUCCESSFUL (JDK 17). Resolved versions were
+checked with `./gradlew :app:dependencies --configuration debugRuntimeClasspath`.
+
+---
+
+## 12. Track B — Stage 2: Travel Log scaffolding and navigation
+
+**Date:** 2026-10-19 · **Branch:** `Feat/Luc-Bitacora` · **Report:** `ETAPA_2_REPORTE.md`
+
+### 12.1 What changed
+
+- **`:features:log`** — new package `com.wandervox.features.log.presentation` (same layout as the
+  Translator): `LogUiState` + `LogTab`, `LogUiEvent`, `LogViewModel`, `LogScreen` (stateful) and
+  `LogContent` (stateless, `PrimaryTabRow` with "Mis viajes" / "Comunidad").
+- **`:app`** — `MainScaffold` gets a `logContent` slot like `translatorContent`, `WanderVoxNavHost`
+  fills it with `LogScreen`, and the Bitácora tab loses its "Próximamente" badge.
+- **Dependencies (`:features:log`)** — `lifecycle-viewmodel-ktx`, `lifecycle-runtime-compose`
+  (`collectAsStateWithLifecycle`) and `kotlinx-coroutines-test` for Stage 3. All three were already in
+  the catalog and are used by `:features:translator`.
+
+### 12.2 Decisions
+
+- **The ViewModel depends on interfaces only** (`LogRepository`, `AuthRepository`). Hilt still binds
+  `InMemoryLogRepository`, so swapping in Track A's Room repository needs no change here.
+- **"Mis viajes" reads `AuthRepository.currentUser`** and calls `getUserEntries(uid)`. The tab and a
+  retry counter drive a `flatMapLatest`, so switching tabs cancels the previous subscription.
+- **The category filter runs in the ViewModel** on the list of the active tab. It already exists in the
+  state for Stage 3, which only adds the chips.
+- **Error state is a flag, not a message.** The UI picks the string resource, so the ViewModel stays
+  free of user-facing text.
+
+### 12.3 Known gap (cross-track)
+
+`TranslatorViewModel.saveToLog` builds the `TravelLogEntry` without `userId` (it stays `""`), so
+entries saved from the Translator do not show up in "Mis viajes". The owner has to be stamped either
+by the Translator or by the repository's `saveEntry`. This needs agreement with Track A and is
+**not** fixed in this stage.
+
+### 12.4 Verification
+
+`./gradlew assembleDebug testDebugUnitTest`: BUILD SUCCESSFUL. Not checked on a device or emulator.
+
+---
+
+## 13. Track B — Stage 3: Log cards, category filter and delete dialog
+
+**Date:** 2026-10-19 · **Branch:** `Feat/Luc-Bitacora` · **Report:** `ETAPA_3_REPORTE.md`
+
+### 13.1 What changed
+
+- **New `presentation/components/`** in `:features:log`: `LogEntryCard`, `CategoryFilterRow`,
+  `DeleteEntryDialog`, `LogPlaceholder` and `LogCategoryUi` (label + icon per `LogCategory`).
+- **`LogViewModel`** handles `OnToggleLike`, `OnDeleteEntry` and `OnActionErrorShown`. A failed like or
+  delete sets `LogUiState.actionError`, which `LogScreen` shows once as a snackbar.
+- **`LogScreen`** owns the delete confirmation (`rememberSaveable` entry id, so it survives rotation).
+- **`LogViewModelTest`**: 12 tests covering tab switching, category filtering, retry, like and delete.
+- **Dependency:** `material-icons-extended` in `:features:log` (category, sync and like icons), the same
+  artifact `:features:auth`, `:features:settings` and `:core:ui` already use.
+
+### 13.2 Decisions
+
+- **What each card shows depends on the tab.** In "Mis viajes": sync badge, and delete for the user's
+  own entries. In "Comunidad": author label ("Viajero anónimo" when `authorName` is null). The like
+  button appears only on public entries, because likes on a private entry have no audience.
+- **Category labels are duplicated on purpose** (`log_category_*`). The Translator's
+  `translator_category_*` are internal to that module. Moving them to `:core:ui` would touch Track A's
+  code, so that is left for a later cleanup.
+- **The filter is kept when switching tabs.** It is one screen-level filter, not one per tab.
+- **The sync badge reuses theme roles** (`tertiaryContainer`, `primaryContainer`, `errorContainer`),
+  whose contrast is already checked in `ColorContrastTest` (§6.4). No new colors were added.
+
+### 13.3 Verification
+
+`./gradlew :features:log:testDebugUnitTest`: 12/12 `LogViewModelTest` pass.
+`./gradlew assembleDebug testDebugUnitTest --rerun-tasks`: BUILD SUCCESSFUL, 0 Kotlin warnings, 50/50
+unit tests. Not checked on a device.
+
+---
+
+## 14. Track B — Stage 4: Photo Picker, sandbox copy and Coil
+
+**Date:** 2026-10-19 · **Branch:** `Feat/Luc-Bitacora` · **Report:** `ETAPA_4_REPORTE.md`
+
+### 14.1 What changed
+
+- **`photo/LogPhotoStorage`** (interface) and **`InternalLogPhotoStorage`** copy the picked image to
+  `filesDir/log_photos/<entryId>_<uuid>.<ext>` and return the absolute path. Hilt binds them in the new
+  `di/LogModule` with `@Binds`.
+- **`LogViewModel`** handles `OnPhotoPicked(entryId, sourceUri)`. The flow is: copy → `saveEntry` with
+  `localPhotoPath` set, `remotePhotoUrl = null`, `syncStatus = PENDING` and a new `updatedAt` → delete
+  the previous copy. If the save fails, the new copy is removed. Deleting an entry also deletes its
+  photo.
+- **`LogScreen`** launches `ActivityResultContracts.PickVisualMedia` (`ImageOnly`) from an
+  "Agregar foto / Cambiar foto" button on the user's own cards.
+- **`components/LogPhoto`** renders the photo with Coil's `AsyncImage`: crossfade, a colour
+  placeholder, and a "La foto no está disponible" fallback on error.
+- **Dependency:** `activity-compose` in `:features:log` for `rememberLauncherForActivityResult`. It is
+  already in the catalog and used by `:features:translator` and `:app`.
+
+### 14.2 Decisions
+
+- **Photo Picker instead of storage permissions.** `PickVisualMedia` needs no `READ_MEDIA_IMAGES` or
+  `READ_EXTERNAL_STORAGE`. On devices without the system picker (API 27–29 without the Play services
+  backport) the contract falls back to `ACTION_OPEN_DOCUMENT`, which needs no permission either.
+- **Copy to `filesDir`.** The picker's URI grant is temporary, and the user may delete the original. A
+  private copy survives both, works offline, needs no permission and is removed on uninstall.
+- **A new file name per import**, so Coil's cache never shows the old photo after a replacement.
+- **The URI crosses into the ViewModel as a `String`.** This keeps `LogViewModel` free of
+  `android.net.Uri`, so it can be unit-tested on the JVM with a fake `LogPhotoStorage`.
+- **The local copy wins over the remote URL** (offline-first). `remotePhotoUrl` is the fallback for
+  Community entries from other devices.
+- **No `@IoDispatcher` injection.** The qualifier lives in `:core:network`, and a feature module should
+  not depend on it, so `InternalLogPhotoStorage` uses `Dispatchers.IO` directly. The ViewModel tests use
+  a fake and are not affected.
+- **No re-compression.** The original bytes are copied as they are. Resizing before the Cloudinary
+  upload can be done in Stage 5 if upload size becomes a problem.
+
+### 14.3 Verification
+
+`./gradlew assembleDebug testDebugUnitTest --rerun-tasks`: BUILD SUCCESSFUL, 0 Kotlin warnings, 55/55
+unit tests (17 in `LogViewModelTest`). `./gradlew :features:log:lintDebug`: the `:features:log` report
+has 0 errors and 1 warning (`ObsoleteLintCustomCheck`, from the toolchain). The task still fails
+because lint crashes while analysing `:core:ui`. The same failure happens on
+`:features:translator:lintDebug` without these changes, so it was already there. Not checked on a
+device.
+
+---
+
+## 15. Track B — Stage 5: Remote data sources (Firestore and Cloudinary)
+
+**Date:** 2026-10-19 · **Branch:** `Feat/Luc-Bitacora` · **Report:** `ETAPA_5_REPORTE.md`
+
+### 15.1 What changed (`:core:network`, package `com.wandervox.core.network.remote`)
+
+- **`log/LogRemoteDataSource`** + **`FirestoreLogRemoteDataSource`** on the `log_entries/{entryId}`
+  collection. Methods: `upsert`, `delete`, `setLiked`, `observeUserEntries(userId)` and
+  `observePublicEntries()`. Each write returns `Result<Unit>`.
+- **`log/LogEntryFirestoreMapper`**: entry ↔ `Map<String, Any?>`, with no Firebase types so it can be
+  unit-tested.
+- **`image/ImageUploader`** + **`CloudinaryImageUploader`**: an unsigned multipart upload that returns
+  `secure_url`.
+- **`di/NetworkRemoteModule`**: `@Binds` for both interfaces, and `@Provides` for `FirebaseFirestore`
+  (persistent cache), `OkHttpClient` and `CloudinaryConfig`.
+- **Build:** `buildConfig = true` in `:core:network`, with `CLOUDINARY_CLOUD_NAME` and
+  `CLOUDINARY_UPLOAD_PRESET` read from `local.properties` (`cloudinary.cloudName`,
+  `cloudinary.uploadPreset`).
+- **Dependencies:** removed `kotlinx-coroutines-play-services` from `:core:network` (added in §11),
+  because the module already has `util/awaitResult()`. Added test-only `org.json:json:20240303` and
+  `kotlinx-coroutines-test`.
+
+### 15.2 Decisions
+
+- **Offline persistence is set explicitly** (`PersistentCacheSettings`) where Firestore is provided, so
+  it does not depend on SDK defaults.
+- **Write acknowledgement with a timeout.** Offline, a Firestore write task never completes. `upsert`,
+  `delete` and `setLiked` wait at most 15 s for the server and then fail with `TimeoutException`. The
+  write stays queued, the repository keeps the entry `PENDING`, and a retry is idempotent
+  (`SetOptions.merge()`).
+- **Likes are never part of an upsert.** They change only through `FieldValue.arrayUnion` /
+  `arrayRemove`, which are atomic and work offline. A transaction would fail without a connection.
+- **`setLiked(entryId, userId, liked)` instead of a server-side toggle.** The repository already knows
+  the current state from its local copy, and a toggle would need a read (a transaction).
+- **Sorting happens on the client.** `whereEqualTo` + `orderBy` on another field needs a composite index
+  deployed in the console, which the project does not manage yet.
+- **`MetadataChanges.INCLUDE`**: the listener re-emits when a pending write is acknowledged, so
+  `hasPendingWrites` maps to `PENDING` / `SYNCED`.
+- **Local-only fields stay local.** `localPhotoPath` and `syncStatus` are never written. Coordinates are
+  stored as two doubles instead of a `GeoPoint`, which keeps the mapper free of Firebase types.
+- **Cloudinary over plain OkHttp** (see §10.2). Only the cloud name and an unsigned preset name are in
+  the APK. Folder, size limit and formats are set on the preset. The call uses `enqueue` and is
+  cancelled together with the coroutine.
+- **Configuration comes from `local.properties`, which is not committed.** If it is missing, the build
+  still works and `upload()` returns a clear failure.
+
+### 15.3 Verification
+
+`./gradlew assembleDebug testDebugUnitTest --rerun-tasks`: BUILD SUCCESSFUL, 0 Kotlin warnings, 64/64
+unit tests (new: `LogEntryFirestoreMapperTest` 4, `CloudinaryImageUploaderTest` 5, which runs offline
+through an OkHttp interceptor). Not checked against a live Firestore project or Cloudinary account.

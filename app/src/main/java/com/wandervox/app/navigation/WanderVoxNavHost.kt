@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.wandervox.auth.LoginScreen
 import com.wandervox.auth.RegisterScreen
+import com.wandervox.features.log.presentation.LogScreen
 import com.wandervox.features.translator.presentation.TranslatorRoute
 import com.wandervox.app.BuildConfig
 import com.wandervox.app.main.MainScaffold
@@ -76,6 +77,7 @@ fun WanderVoxNavHost(
         composable(Routes.HOME) {
             MainScaffold(
                 translatorContent = { modifier -> TranslatorRoute(modifier = modifier) },
+                logContent = { modifier -> LogScreen(modifier = modifier) },
                 onNavigateToSettings = {
                     navController.navigate(Routes.SETTINGS) { launchSingleTop = true }
                 }

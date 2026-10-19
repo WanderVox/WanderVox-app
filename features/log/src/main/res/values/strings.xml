@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="log_tab_my_trips">Mis viajes</string>
+    <string name="log_tab_community">Comunidad</string>
+
+    <string name="log_empty_my_trips">Todavía no guardaste ninguna entrada. Guardá una traducción desde el Traductor para empezar tu bitácora.</string>
+    <string name="log_empty_community">Aún no hay entradas públicas de la comunidad.</string>
+    <string name="log_empty_filtered">No hay entradas en la categoría «%1$s».</string>
+    <string name="log_clear_filter">Ver todas</string>
+    <string name="log_error_loading">No se pudo cargar la bitácora.</string>
+    <string name="log_retry">Reintentar</string>
+
+    <string name="log_filter_all">Todas</string>
+    <string name="log_category_food">Comida</string>
+    <string name="log_category_transport">Transporte</string>
+    <string name="log_category_lodging">Alojamiento</string>
+    <string name="log_category_shopping">Compras</string>
+    <string name="log_category_emergency">Emergencia</string>
+    <string name="log_category_general">General</string>
+
+    <string name="log_sync_pending">Pendiente</string>
+    <string name="log_sync_synced">Sincronizada</string>
+    <string name="log_sync_failed">Error al sincronizar</string>
+
+    <string name="log_author_anonymous">Viajero anónimo</string>
+    <string name="log_author_by">Por %1$s</string>
+    <string name="log_like">Me gusta</string>
+    <string name="log_unlike">Quitar me gusta</string>
+    <string name="log_delete">Eliminar</string>
+    <string name="log_add_photo">Agregar foto</string>
+    <string name="log_change_photo">Cambiar foto</string>
+    <string name="log_photo_description">Foto de la entrada</string>
+    <string name="log_photo_unavailable">La foto no está disponible</string>
+
+    <string name="log_delete_dialog_title">¿Eliminar entrada?</string>
+    <string name="log_delete_dialog_text">Se borrará de tu bitácora. Esta acción no se puede deshacer.</string>
+    <string name="log_delete_dialog_confirm">Eliminar</string>
+    <string name="log_delete_dialog_cancel">Cancelar</string>
+
+    <string name="log_error_like">No se pudo actualizar el me gusta.</string>
+    <string name="log_error_delete">No se pudo eliminar la entrada.</string>
+    <string name="log_error_photo">No se pudo guardar la foto. Probá con otra imagen.</string>
+</resources>
