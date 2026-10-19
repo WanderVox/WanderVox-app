@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.androidx.room)
+    //alias(libs.plugins.androidx.room)
 }
 
 android {
@@ -39,11 +39,6 @@ android {
         // Drop once AGP >= 8.9.
         disable += setOf("NullSafeMutableLiveData", "FrequentlyChangingValue", "RememberInComposition")
     }
-}
-
-room {
-    // Exported schemas are versioned in git so future migrations can be written and tested.
-    schemaDirectory("$projectDir/schemas")
 }
 
 ksp {

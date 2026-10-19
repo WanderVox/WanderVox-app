@@ -10,7 +10,7 @@ import com.wandervox.core.database.entity.TravelLogEntity
 @Database(
     entities = [TravelLogEntity::class],
     version = 1,
-    exportSchema = true
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class WanderVoxDatabase : RoomDatabase() {
