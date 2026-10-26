@@ -26,6 +26,9 @@
     <string name="translator_category_label">Categoría</string>
     <string name="translator_notes_label">Notas (opcional)</string>
     <string name="translator_save_confirm">Guardar</string>
+    <string name="translator_share_label">Compartir con la comunidad</string>
+    <string name="translator_share_off_hint">Solo vos vas a ver esta entrada</string>
+    <string name="translator_share_on_hint">Otros viajeros la van a ver en Comunidad</string>
     <string name="translator_saved_success">Guardado en tu bitácora</string>
 
     <string name="translator_category_food">Comida</string>

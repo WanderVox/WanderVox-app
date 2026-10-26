@@ -53,6 +53,15 @@ class LogEntryFirestoreMapperTest {
     }
 
     @Test
+    fun `visibility is always written under the field the community query filters on`() {
+        // observePublicEntries() runs whereEqualTo("isPublic", true): the key must match exactly.
+        assertEquals(true, LogEntryFirestoreMapper.toFirestore(entry)["isPublic"])
+        // Written even when false, so a merge upsert turns a public document private again.
+        val privateData = LogEntryFirestoreMapper.toFirestore(entry.copy(isPublic = false))
+        assertEquals(false, privateData["isPublic"])
+    }
+
+    @Test
     fun `pending writes map to pending sync status`() {
         val restored = LogEntryFirestoreMapper.fromFirestore(
             "id", LogEntryFirestoreMapper.toFirestore(entry), hasPendingWrites = true,

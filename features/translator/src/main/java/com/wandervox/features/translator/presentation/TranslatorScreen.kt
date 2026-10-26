@@ -120,13 +120,15 @@ fun TranslatorRoute(
     requestMicPermission = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
 
     // A confirmed save waiting for the location permission answer. Saveable: the system dialog can
-    // outlive a configuration change. Pair, LogCategory and String are all Serializable.
-    var pendingSave by rememberSaveable { mutableStateOf<Pair<LogCategory, String>?>(null) }
+    // outlive a configuration change. Triple, LogCategory, String and Boolean are all Serializable.
+    var pendingSave by rememberSaveable { mutableStateOf<Triple<LogCategory, String, Boolean>?>(null) }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         // Saved either way: the location is optional, and the ViewModel skips it when the permission was denied.
-        pendingSave?.let { (category, notes) -> viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes)) }
+        pendingSave?.let { (category, notes, isPublic) ->
+            viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes, isPublic))
+        }
         pendingSave = null
     }
 
@@ -175,13 +177,13 @@ fun TranslatorRoute(
         },
         onSaveClick = { isSaveSheetVisible = true },
         onDismissSaveSheet = { isSaveSheetVisible = false },
-        onConfirmSave = { category, notes ->
+        onConfirmSave = { category, notes, isPublic ->
             isSaveSheetVisible = false
             if (context.hasLocationPermission()) {
-                viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes))
+                viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category, notes, isPublic))
             } else {
                 // Coarse is listed too: on Android 12+ the user may grant only approximate location.
-                pendingSave = category to notes
+                pendingSave = Triple(category, notes, isPublic)
                 locationPermissionLauncher.launch(
                     arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                 )
@@ -202,7 +204,7 @@ fun TranslatorContent(
     onCopyClick: () -> Unit,
     onSaveClick: () -> Unit,
     onDismissSaveSheet: () -> Unit,
-    onConfirmSave: (LogCategory, String) -> Unit,
+    onConfirmSave: (category: LogCategory, notes: String, isPublic: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val canInteract = !uiState.isInitializingModels
@@ -290,9 +292,9 @@ fun TranslatorContent(
         SaveToLogSheet(
             sheetState = sheetState,
             onDismissRequest = onDismissSaveSheet,
-            onConfirm = { category, notes ->
+            onConfirm = { category, notes, isPublic ->
                 // Let the sheet animate out before it leaves the composition.
-                scope.launch { sheetState.hide() }.invokeOnCompletion { onConfirmSave(category, notes) }
+                scope.launch { sheetState.hide() }.invokeOnCompletion { onConfirmSave(category, notes, isPublic) }
             },
         )
     }
@@ -357,7 +359,7 @@ private fun TranslatorContentPreview(uiState: TranslatorUiState) {
             onCopyClick = {},
             onSaveClick = {},
             onDismissSaveSheet = {},
-            onConfirmSave = { _, _ -> },
+            onConfirmSave = { _, _, _ -> },
         )
     }
 }

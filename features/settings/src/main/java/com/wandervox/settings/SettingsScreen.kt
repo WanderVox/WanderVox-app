@@ -24,13 +24,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,12 +61,10 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wandervox.core.ui.components.DevelopmentBadge
 import com.wandervox.core.ui.components.WanderVoxErrorMessage
 import com.wandervox.core.ui.components.WanderVoxSettingsDivider
 import com.wandervox.core.ui.components.WanderVoxSettingsItem
 import com.wandervox.core.ui.components.WanderVoxSettingsSection
-import com.wandervox.core.ui.components.WanderVoxSettingsSwitchItem
 import com.wandervox.core.ui.components.WanderVoxStatusChip
 import com.wandervox.core.ui.theme.WanderVoxTheme
 
@@ -110,7 +106,6 @@ fun SettingsScreen(
         appVersion = appVersion,
         onNavigateBack = onNavigateBack,
         onNavigateToTerms = onNavigateToTerms,
-        onOfflineModeChange = viewModel::onOfflineModeChange,
         onOpenAppPermissions = { context.openAppDetailsSettings() },
         onLogoutClick = { viewModel.clearError(); showLogoutDialog = true },
         modifier = modifier
@@ -134,7 +129,6 @@ fun SettingsContent(
     appVersion: String,
     onNavigateBack: () -> Unit,
     onNavigateToTerms: () -> Unit,
-    onOfflineModeChange: (Boolean) -> Unit,
     onOpenAppPermissions: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -172,25 +166,6 @@ fun SettingsContent(
                     errorMessage = uiState.errorMessage,
                     onLogoutClick = onLogoutClick
                 )
-            }
-            item {
-                WanderVoxSettingsSection(title = "Conectividad") {
-                    WanderVoxSettingsSwitchItem(
-                        icon = Icons.Outlined.CloudOff,
-                        title = "Modo offline forzado",
-                        subtitle = "Simular que no hay conexión y usar solo datos locales",
-                        checked = uiState.isOfflineModeEnabled,
-                        onCheckedChange = onOfflineModeChange
-                    )
-                    WanderVoxSettingsDivider()
-                    WanderVoxSettingsItem(
-                        icon = Icons.Outlined.Sync,
-                        title = "Sincronización de Bitácora",
-                        subtitle = "Subir tus entradas guardadas a la nube",
-                        enabled = false,
-                        trailing = { DevelopmentBadge() }
-                    )
-                }
             }
             item {
                 WanderVoxSettingsSection(title = "Permisos") {
@@ -380,7 +355,6 @@ private fun SettingsContentPreview() {
             appVersion = "1.0",
             onNavigateBack = {},
             onNavigateToTerms = {},
-            onOfflineModeChange = {},
             onOpenAppPermissions = {},
             onLogoutClick = {}
         )

@@ -3,6 +3,7 @@ package com.wandervox.core.data.repository
 import com.wandervox.core.data.di.ApplicationScope
 import com.wandervox.core.data.util.runSuspendCatching
 import com.wandervox.core.database.dao.TravelLogDao
+import com.wandervox.core.database.entity.TravelLogEntity
 import com.wandervox.core.database.mapper.asDomain
 import com.wandervox.core.database.mapper.asEntity
 import com.wandervox.core.domain.model.SyncStatus
@@ -27,10 +28,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Room is the source of truth for the user's own entries; the remote store is a replica.
+ * Room is the source of truth for the user's own entries; the remote store only holds the public ones.
  *
- * Writes land in Room as [SyncStatus.PENDING] (or [SyncStatus.PENDING_DELETE] for deletes) and return
- * immediately. The remote side (photo upload, document upsert or delete) runs on the [ApplicationScope]
+ * Upload on demand: a private entry stays on the device (no photo upload, no Firestore document). It is
+ * uploaded when it becomes public, and its document is deleted when it becomes private again. So
+ * [SyncStatus] means "the remote matches what this entry should be": a private entry that was never
+ * shared is [SyncStatus.SYNCED] with nothing on the server.
+ *
+ * Writes that need the remote land in Room as [SyncStatus.PENDING] (or [SyncStatus.PENDING_DELETE] for
+ * deletes) and return immediately. The remote side (photo upload, document upsert or delete) runs on the [ApplicationScope]
  * so the caller never waits on the network, which with Firestore offline persistence could otherwise
  * block until connectivity returns.
  */
@@ -67,16 +73,26 @@ class OfflineFirstLogRepository @Inject constructor(
         val user = authRepository.currentUser.first()
         val id = entry.id.ifBlank { UUID.randomUUID().toString() }
         val previous = dao.findById(id)
-        val pending = entry.copy(
+        // Public: upload. Private: only unpublish a document that may exist; otherwise stay local.
+        val needsRemote = entry.isPublic || previous.mayHaveRemoteDocument()
+        val saved = entry.copy(
             id = id,
             userId = user?.uid ?: entry.userId,
             authorName = if (user != null) user.email ?: DEFAULT_AUTHOR_NAME else entry.authorName,
             updatedAt = nextUpdatedAt(previous?.updatedAt),
-            syncStatus = SyncStatus.PENDING
+            syncStatus = if (needsRemote) SyncStatus.PENDING else SyncStatus.SYNCED
         )
-        dao.upsert(pending.asEntity())
-        appScope.launch { runSuspendCatching { syncEntry(pending) } }
+        dao.upsert(saved.asEntity())
+        if (needsRemote) appScope.launch { runSuspendCatching { syncEntry(saved) } }
     }
+
+    /**
+     * A shared row, or one with remote work still pending (e.g. an unpublish that has not reached the
+     * server). Rows synced under the old upload-everything policy may also have a private document;
+     * those are left alone, since the Community query never returns them.
+     */
+    private fun TravelLogEntity?.mayHaveRemoteDocument(): Boolean =
+        this != null && (isPublic || syncStatus != SyncStatus.SYNCED)
 
     override suspend fun toggleLike(entryId: String, userId: String): Result<Unit> = runSuspendCatching {
         val local = dao.findById(entryId)
@@ -109,7 +125,10 @@ class OfflineFirstLogRepository @Inject constructor(
         appScope.launch { runSuspendCatching { syncEntry(tombstone.asDomain()) } }
     }
 
-    /** Retries every unsynced entry: uploads for PENDING/FAILED, remote deletes for PENDING_DELETE. */
+    /**
+     * Retries every unsynced entry: uploads for public PENDING/FAILED rows, unpublishes for private ones,
+     * remote deletes for PENDING_DELETE.
+     */
     override suspend fun syncPending(): Result<Unit> = runSuspendCatching {
         val unsynced = dao.getEntriesBySyncStatus(
             listOf(SyncStatus.PENDING, SyncStatus.FAILED, SyncStatus.PENDING_DELETE)
@@ -198,7 +217,11 @@ class OfflineFirstLogRepository @Inject constructor(
     private suspend fun syncEntry(entry: TravelLogEntry): Boolean {
         if (!inFlight.add(entry.id)) return true
         val outcome = try {
-            if (entry.syncStatus == SyncStatus.PENDING_DELETE) deleteRemotely(entry) else uploadAndRecord(entry)
+            when {
+                entry.syncStatus == SyncStatus.PENDING_DELETE -> deleteRemotely(entry)
+                entry.isPublic -> uploadAndRecord(entry)
+                else -> unpublish(entry)
+            }
         } finally {
             inFlight.remove(entry.id)
         }
@@ -245,6 +268,23 @@ class OfflineFirstLogRepository @Inject constructor(
             localPhotoPath = localPhotoPath
         )
         return SyncOutcome(succeeded = synced, superseded = rowsUpdated == 0)
+    }
+
+    /**
+     * Removes a now-private entry from the server (and so from the Community feed); the row stays.
+     * Idempotent: deleting a document that does not exist succeeds. The Cloudinary photo is kept and its
+     * URL too, so sharing the entry again does not upload the same image twice.
+     */
+    private suspend fun unpublish(entry: TravelLogEntry): SyncOutcome {
+        val deleted = withRemoteTimeout(REMOTE_WRITE_TIMEOUT_MILLIS) { remote.delete(entry.id) }.isSuccess
+        val rowsUpdated = dao.updateSyncResult(
+            id = entry.id,
+            updatedAt = entry.updatedAt,
+            status = if (deleted) SyncStatus.SYNCED else SyncStatus.FAILED,
+            remotePhotoUrl = entry.remotePhotoUrl,
+            localPhotoPath = entry.localPhotoPath
+        )
+        return SyncOutcome(succeeded = deleted, superseded = rowsUpdated == 0)
     }
 
     /** Deletes the document remotely; the tombstone is removed only once that is confirmed. */

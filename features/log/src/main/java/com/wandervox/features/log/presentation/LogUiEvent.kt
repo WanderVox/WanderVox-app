@@ -9,6 +9,11 @@ sealed interface LogUiEvent {
     data class OnCategorySelected(val category: LogCategory?) : LogUiEvent
     data object OnRetry : LogUiEvent
     data class OnToggleLike(val entryId: String) : LogUiEvent
+    /**
+     * Shares an own entry on the Community feed (uploads it) or makes it private again (removes it from
+     * the server). Sent after the user confirmed the share dialog.
+     */
+    data class OnSetVisibility(val entryId: String, val isPublic: Boolean) : LogUiEvent
     /** Sent after the user confirmed the delete dialog. */
     data class OnDeleteEntry(val entryId: String) : LogUiEvent
     data object OnActionErrorShown : LogUiEvent

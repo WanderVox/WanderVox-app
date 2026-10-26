@@ -1,5 +1,6 @@
 package com.wandervox.app.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,12 +11,16 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.wandervox.auth.LoginScreen
 import com.wandervox.auth.RegisterScreen
 import com.wandervox.features.log.presentation.LogScreen
+import com.wandervox.features.log.presentation.detail.LogDetailScreen
+import com.wandervox.features.log.presentation.detail.LogDetailViewModel
 import com.wandervox.features.translator.presentation.TranslatorRoute
 import com.wandervox.app.BuildConfig
 import com.wandervox.app.main.MainScaffold
@@ -28,6 +33,9 @@ private object Routes {
     const val HOME = "home"
     const val SETTINGS = "settings"
     const val TERMS = "terms"
+    const val LOG_DETAIL = "log/detail/{${LogDetailViewModel.ENTRY_ID_ARG}}"
+
+    fun logDetail(entryId: String) = "log/detail/${Uri.encode(entryId)}"
 }
 
 /**
@@ -75,12 +83,27 @@ fun WanderVoxNavHost(
             )
         }
         composable(Routes.HOME) {
+            val openLogEntry: (String) -> Unit = { entryId ->
+                navController.navigate(Routes.logDetail(entryId)) { launchSingleTop = true }
+            }
             MainScaffold(
                 translatorContent = { modifier -> TranslatorRoute(modifier = modifier) },
-                logContent = { modifier -> LogScreen(modifier = modifier) },
+                logContent = { modifier -> LogScreen(onEntryClick = openLogEntry, modifier = modifier) },
                 onNavigateToSettings = {
                     navController.navigate(Routes.SETTINGS) { launchSingleTop = true }
-                }
+                },
+                onOpenLogEntry = openLogEntry
+            )
+        }
+        // Como Ajustes, el detalle vive fuera de MainScaffold: se abre a pantalla completa desde la
+        // Bitácora o el Mapa, y volver restaura la pestaña de origen.
+        composable(
+            route = Routes.LOG_DETAIL,
+            arguments = listOf(navArgument(LogDetailViewModel.ENTRY_ID_ARG) { type = NavType.StringType })
+        ) {
+            LogDetailScreen(
+                // pop por ruta (no un pop simple) para que un doble toque en "atrás" no saque también a Home.
+                onNavigateBack = { navController.popBackStack(Routes.LOG_DETAIL, inclusive = true) }
             )
         }
         // Ajustes vive fuera de MainScaffold: Home queda en el back stack con su pestaña activa

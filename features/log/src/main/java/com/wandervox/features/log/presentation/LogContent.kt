@@ -36,26 +36,34 @@ import com.wandervox.features.log.presentation.components.CategoryFilterRow
 import com.wandervox.features.log.presentation.components.DeleteEntryDialog
 import com.wandervox.features.log.presentation.components.LogEntryCard
 import com.wandervox.features.log.presentation.components.LogPlaceholder
+import com.wandervox.features.log.presentation.components.ShareEntryDialog
 import com.wandervox.features.log.presentation.components.labelRes
 import com.wandervox.log.R
 
 /**
  * Stateless Travel Log UI: the "Mis viajes" / "Comunidad" tabs, the category filter and the list of
- * the selected tab, plus the delete confirmation for [pendingDeletionId].
+ * the selected tab, plus the delete confirmation for [pendingDeletionId] and the share confirmation
+ * for [pendingShareId].
  */
 @Composable
 fun LogContent(
     uiState: LogUiState,
     snackbarHostState: SnackbarHostState,
     pendingDeletionId: String?,
+    pendingShareId: String?,
     onTabSelected: (LogTab) -> Unit,
     onCategorySelected: (LogCategory?) -> Unit,
     onRetry: () -> Unit,
+    onEntryClick: (entryId: String) -> Unit,
     onToggleLike: (entryId: String) -> Unit,
+    onShareRequest: (entryId: String) -> Unit,
+    onMakePrivate: (entryId: String) -> Unit,
     onDeleteRequest: (entryId: String) -> Unit,
     onPickPhoto: (entryId: String) -> Unit,
     onDeleteConfirm: () -> Unit,
     onDeleteDismiss: () -> Unit,
+    onShareConfirm: () -> Unit,
+    onShareDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -88,7 +96,10 @@ fun LogContent(
                     uiState = uiState,
                     onCategorySelected = onCategorySelected,
                     onRetry = onRetry,
+                    onEntryClick = onEntryClick,
                     onToggleLike = onToggleLike,
+                    onShareRequest = onShareRequest,
+                    onMakePrivate = onMakePrivate,
                     onDeleteRequest = onDeleteRequest,
                     onPickPhoto = onPickPhoto,
                 )
@@ -101,6 +112,9 @@ fun LogContent(
     if (pendingDeletionId != null) {
         DeleteEntryDialog(onConfirm = onDeleteConfirm, onDismiss = onDeleteDismiss)
     }
+    if (pendingShareId != null) {
+        ShareEntryDialog(onConfirm = onShareConfirm, onDismiss = onShareDismiss)
+    }
 }
 
 @Composable
@@ -108,7 +122,10 @@ private fun LogBody(
     uiState: LogUiState,
     onCategorySelected: (LogCategory?) -> Unit,
     onRetry: () -> Unit,
+    onEntryClick: (entryId: String) -> Unit,
     onToggleLike: (entryId: String) -> Unit,
+    onShareRequest: (entryId: String) -> Unit,
+    onMakePrivate: (entryId: String) -> Unit,
     onDeleteRequest: (entryId: String) -> Unit,
     onPickPhoto: (entryId: String) -> Unit,
 ) {
@@ -148,6 +165,12 @@ private fun LogBody(
                         showSyncStatus = isMyTrips,
                         onToggleLike = { onToggleLike(entry.id) },
                         isImportingPhoto = entry.id == uiState.importingPhotoEntryId,
+                        onClick = { onEntryClick(entry.id) },
+                        onToggleVisibility = if (isMyTrips && isOwnEntry) {
+                            { if (entry.isPublic) onMakePrivate(entry.id) else onShareRequest(entry.id) }
+                        } else {
+                            null
+                        },
                         onPickPhoto = if (isMyTrips && isOwnEntry) ({ onPickPhoto(entry.id) }) else null,
                         onDelete = if (isMyTrips && isOwnEntry) ({ onDeleteRequest(entry.id) }) else null,
                     )
@@ -249,14 +272,20 @@ private fun LogContentPreview(uiState: LogUiState) {
             uiState = uiState,
             snackbarHostState = remember { SnackbarHostState() },
             pendingDeletionId = null,
+            pendingShareId = null,
             onTabSelected = {},
             onCategorySelected = {},
             onRetry = {},
+            onEntryClick = {},
             onToggleLike = {},
+            onShareRequest = {},
+            onMakePrivate = {},
             onDeleteRequest = {},
             onPickPhoto = {},
             onDeleteConfirm = {},
             onDeleteDismiss = {},
+            onShareConfirm = {},
+            onShareDismiss = {},
         )
     }
 }

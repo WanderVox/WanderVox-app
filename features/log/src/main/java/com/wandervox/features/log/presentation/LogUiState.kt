@@ -7,7 +7,7 @@ import com.wandervox.core.domain.model.TravelLogEntry
 enum class LogTab { MY_TRIPS, COMMUNITY }
 
 /** A one-off action on an entry that failed; the UI shows it once and reports it consumed. */
-enum class LogActionError { LIKE, DELETE, PHOTO }
+enum class LogActionError { LIKE, DELETE, PHOTO, VISIBILITY }
 
 /** Single, immutable snapshot of everything the Travel Log screen renders. */
 data class LogUiState(

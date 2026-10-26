@@ -133,10 +133,14 @@ class FakeLogRemoteDataSource : LogRemoteDataSource {
             operations += "upsert:${entry.id}"
         }
 
+    /** Runs after each successful delete, e.g. to drop the document from a simulated store. */
+    var onDeleted: (String) -> Unit = {}
+
     override suspend fun delete(entryId: String): Result<Unit> =
         deleteResult.onSuccess {
             deleted += entryId
             operations += "delete:$entryId"
+            onDeleted(entryId)
         }
 
     override fun observeUserEntries(userId: String): Flow<List<TravelLogEntry>> =
