@@ -21,11 +21,14 @@ import kotlinx.coroutines.launch
 
 /**
  * Stateful entry point of the Travel Log tab: owns the ViewModel, the Photo Picker launcher, the
- * delete confirmation and one-off messages, and forwards every user intent as a [LogUiEvent]. All
+ * delete and share confirmations and one-off messages, and forwards every user intent as a [LogUiEvent]. All
  * rendering is delegated to the stateless [LogContent].
+ *
+ * @param onEntryClick receives the tapped entry's id, to open its detail screen.
  */
 @Composable
 fun LogScreen(
+    onEntryClick: (entryId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LogViewModel = hiltViewModel(),
 ) {
@@ -33,6 +36,7 @@ fun LogScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var pendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingShareId by rememberSaveable { mutableStateOf<String?>(null) }
     // Saveable: the picker is another activity, so this screen may be recreated before it returns.
     var photoTargetEntryId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -49,6 +53,7 @@ fun LogScreen(
     val likeErrorMessage = stringResource(R.string.log_error_like)
     val deleteErrorMessage = stringResource(R.string.log_error_delete)
     val photoErrorMessage = stringResource(R.string.log_error_photo)
+    val visibilityErrorMessage = stringResource(R.string.log_error_visibility)
 
     // Consumed first, then shown on the screen's scope so resetting the flag does not cancel it.
     LaunchedEffect(uiState.actionError) {
@@ -58,6 +63,7 @@ fun LogScreen(
             LogActionError.LIKE -> likeErrorMessage
             LogActionError.DELETE -> deleteErrorMessage
             LogActionError.PHOTO -> photoErrorMessage
+            LogActionError.VISIBILITY -> visibilityErrorMessage
         }
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
@@ -66,10 +72,15 @@ fun LogScreen(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
         pendingDeletionId = pendingDeletionId,
+        pendingShareId = pendingShareId,
         onTabSelected = { viewModel.onEvent(LogUiEvent.OnTabSelected(it)) },
         onCategorySelected = { viewModel.onEvent(LogUiEvent.OnCategorySelected(it)) },
         onRetry = { viewModel.onEvent(LogUiEvent.OnRetry) },
+        onEntryClick = onEntryClick,
         onToggleLike = { viewModel.onEvent(LogUiEvent.OnToggleLike(it)) },
+        onShareRequest = { pendingShareId = it },
+        // Unsharing needs no confirmation: it only removes the entry from the Community feed.
+        onMakePrivate = { viewModel.onEvent(LogUiEvent.OnSetVisibility(it, isPublic = false)) },
         onDeleteRequest = { pendingDeletionId = it },
         onPickPhoto = { entryId ->
             photoTargetEntryId = entryId
@@ -80,6 +91,11 @@ fun LogScreen(
             pendingDeletionId = null
         },
         onDeleteDismiss = { pendingDeletionId = null },
+        onShareConfirm = {
+            pendingShareId?.let { viewModel.onEvent(LogUiEvent.OnSetVisibility(it, isPublic = true)) }
+            pendingShareId = null
+        },
+        onShareDismiss = { pendingShareId = null },
         modifier = modifier,
     )
 }

@@ -40,4 +40,27 @@
     <string name="log_error_like">No se pudo actualizar el me gusta.</string>
     <string name="log_error_delete">No se pudo eliminar la entrada.</string>
     <string name="log_error_photo">No se pudo guardar la foto. Probá con otra imagen.</string>
+    <string name="log_error_visibility">No se pudo cambiar la visibilidad de la entrada.</string>
+
+    <string name="log_visibility_public">Pública</string>
+    <string name="log_visibility_private">Privada</string>
+    <string name="log_visibility_make_public">Compartir con la comunidad</string>
+    <string name="log_visibility_make_private">Hacer privada</string>
+    <string name="log_visibility_public_detail">Visible para todos en Comunidad</string>
+    <string name="log_visibility_private_detail">Guardada solo en este dispositivo</string>
+    <string name="log_share_in_progress">Sincronizando con la comunidad</string>
+
+    <string name="log_share_dialog_title">¿Compartir con la comunidad?</string>
+    <string name="log_share_dialog_text">Se subirán el texto, la traducción, las notas, la ubicación y la foto de esta entrada. Cualquier viajero podrá verla en Comunidad. Podés volver a hacerla privada cuando quieras.</string>
+    <string name="log_share_dialog_confirm">Compartir</string>
+    <string name="log_share_dialog_cancel">Cancelar</string>
+
+    <string name="log_detail_title">Detalle de la entrada</string>
+    <string name="log_detail_back">Volver</string>
+    <string name="log_detail_not_found">Esta entrada ya no está disponible.</string>
+    <string name="log_detail_original">Original (%1$s)</string>
+    <string name="log_detail_translation">Traducción (%1$s)</string>
+    <string name="log_detail_notes">Notas</string>
+    <string name="log_detail_location">%1$s, %2$s</string>
+    <string name="log_detail_location_description">Ubicación de la entrada</string>
 </resources>

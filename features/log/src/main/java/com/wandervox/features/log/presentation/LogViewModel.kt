@@ -94,6 +94,7 @@ class LogViewModel @Inject constructor(
             is LogUiEvent.OnCategorySelected -> presentationState.update { it.copy(selectedCategory = event.category) }
             LogUiEvent.OnRetry -> presentationState.update { it.copy(retryCount = it.retryCount + 1) }
             is LogUiEvent.OnToggleLike -> toggleLike(event.entryId)
+            is LogUiEvent.OnSetVisibility -> setVisibility(event.entryId, event.isPublic)
             is LogUiEvent.OnDeleteEntry -> deleteEntry(event.entryId)
             LogUiEvent.OnActionErrorShown -> presentationState.update { it.copy(actionError = null) }
             is LogUiEvent.OnPhotoPicked -> attachPhoto(event.entryId, event.sourceUri)
@@ -106,6 +107,23 @@ class LogViewModel @Inject constructor(
         viewModelScope.launch {
             logRepository.toggleLike(entryId, userId)
                 .onFailure { presentationState.update { it.copy(actionError = LogActionError.LIKE) } }
+        }
+    }
+
+    /**
+     * The target value (not a toggle) makes a repeated tap harmless. The repository runs the upload
+     * (photo to Cloudinary, then the Firestore document) or the unpublish; the card follows Room.
+     */
+    private fun setVisibility(entryId: String, isPublic: Boolean) {
+        viewModelScope.launch {
+            val result = runCatching {
+                val entry = checkNotNull(logRepository.getEntry(entryId).first()) { "Entry $entryId not found" }
+                if (entry.isPublic == isPublic) return@runCatching
+                logRepository.saveEntry(entry.copy(isPublic = isPublic, updatedAt = System.currentTimeMillis()))
+                    .getOrThrow()
+            }
+            (result.exceptionOrNull() as? CancellationException)?.let { throw it }
+            if (result.isFailure) presentationState.update { it.copy(actionError = LogActionError.VISIBILITY) }
         }
     }
 

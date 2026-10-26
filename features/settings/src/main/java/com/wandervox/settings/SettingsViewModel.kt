@@ -15,8 +15,6 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val userEmail: String? = null,
-    // TODO: persistir y conectar con el motor offline cuando exista (hoy solo vive en memoria).
-    val isOfflineModeEnabled: Boolean = false,
     val isMicrophoneGranted: Boolean = false,
     val isLocationGranted: Boolean = false,
     val isLoggingOut: Boolean = false,
@@ -36,10 +34,6 @@ class SettingsViewModel @Inject constructor(
         combine(authRepository.currentUser, localState) { user, state ->
             state.copy(userEmail = user?.email)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
-
-    fun onOfflineModeChange(enabled: Boolean) {
-        localState.update { it.copy(isOfflineModeEnabled = enabled) }
-    }
 
     /** La pantalla consulta los permisos al Android framework y reporta el resultado acá. */
     fun onPermissionsChecked(isMicrophoneGranted: Boolean, isLocationGranted: Boolean) {

@@ -133,6 +133,7 @@ class TranslatorViewModel @Inject constructor(
             timestamp = System.currentTimeMillis(),
             category = event.category,
             notes = event.notes.trim(),
+            isPublic = event.isPublic,
         )
 
         // The entry is built before this suspends, so the saved text is what the user saw on confirm.

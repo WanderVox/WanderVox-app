@@ -31,6 +31,7 @@ import com.wandervox.features.map.presentation.MapScreen
  * @param translatorContent contenido de la pestaña Traductor, provisto por quien arma la app.
  * @param logContent contenido de la pestaña Bitácora, provisto por quien arma la app.
  * @param onNavigateToSettings abre Ajustes desde cualquier pestaña (ícono de engranaje).
+ * @param onOpenLogEntry abre el detalle de una entrada al tocar su pin en el Mapa.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +39,7 @@ fun MainScaffold(
     translatorContent: @Composable (Modifier) -> Unit,
     logContent: @Composable (Modifier) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onOpenLogEntry: (entryId: String) -> Unit,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
@@ -85,7 +87,7 @@ fun MainScaffold(
                 logContent(Modifier)
             }
             composable(MainTab.Map.route) {
-                MapScreen()
+                MapScreen(onMarkerClick = onOpenLogEntry)
             }
         }
     }

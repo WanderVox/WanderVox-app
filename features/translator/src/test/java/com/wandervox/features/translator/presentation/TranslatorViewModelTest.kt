@@ -145,6 +145,28 @@ class TranslatorViewModelTest {
     }
 
     @Test
+    fun `save is private unless the user shares it`() = runTest {
+        val viewModel = createSubscribedViewModel()
+        translatorRepository.recognized.value = "Hola"
+
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = ""))
+
+        assertFalse(logRepository.savedEntries.single().isPublic)
+    }
+
+    @Test
+    fun `shared save marks the entry as public`() = runTest {
+        val viewModel = createSubscribedViewModel()
+        translatorRepository.recognized.value = "Hola"
+
+        viewModel.onEvent(TranslatorUiEvent.OnSaveToLog(category = LogCategory.FOOD, notes = "", isPublic = true))
+
+        val saved = logRepository.savedEntries.single()
+        assertTrue(saved.isPublic)
+        assertEquals(SyncStatus.PENDING, saved.syncStatus)
+    }
+
+    @Test
     fun `save without location still persists the entry`() = runTest {
         locationRepository.result = Result.failure(SecurityException("permission denied"))
         val viewModel = createSubscribedViewModel()

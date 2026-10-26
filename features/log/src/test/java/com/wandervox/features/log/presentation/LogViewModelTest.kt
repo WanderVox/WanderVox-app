@@ -190,6 +190,60 @@ class LogViewModelTest {
         assertNull(viewModel.uiState.value.actionError)
     }
 
+    // --- Visibility ---
+
+    @Test
+    fun `sharing a private entry saves it as public`() = runTest {
+        val viewModel = createSubscribedViewModel()
+
+        viewModel.onEvent(LogUiEvent.OnSetVisibility("mine-food", isPublic = true))
+
+        // The repository decides the sync status and runs the upload; the ViewModel only sets the flag.
+        assertTrue(logRepository.entries.value.single { it.id == "mine-food" }.isPublic)
+        assertTrue(viewModel.uiState.value.entries.single { it.id == "mine-food" }.isPublic)
+    }
+
+    @Test
+    fun `making an entry private drops it from the community`() = runTest {
+        val viewModel = createSubscribedViewModel()
+
+        viewModel.onEvent(LogUiEvent.OnSetVisibility("mine-transport", isPublic = false))
+        viewModel.onEvent(LogUiEvent.OnTabSelected(LogTab.COMMUNITY))
+
+        assertFalse(logRepository.entries.value.single { it.id == "mine-transport" }.isPublic)
+        assertEquals(listOf("other-food"), viewModel.uiState.value.entryIds())
+    }
+
+    @Test
+    fun `repeating the current visibility saves nothing`() = runTest {
+        val viewModel = createSubscribedViewModel()
+
+        viewModel.onEvent(LogUiEvent.OnSetVisibility("mine-transport", isPublic = true))
+        viewModel.onEvent(LogUiEvent.OnSetVisibility("mine-food", isPublic = false))
+
+        assertEquals(0, logRepository.saveCount)
+    }
+
+    @Test
+    fun `failed visibility change reports an action error`() = runTest {
+        logRepository.failSave = true
+        val viewModel = createSubscribedViewModel()
+
+        viewModel.onEvent(LogUiEvent.OnSetVisibility("mine-food", isPublic = true))
+
+        assertFalse(logRepository.entries.value.single { it.id == "mine-food" }.isPublic)
+        assertEquals(LogActionError.VISIBILITY, viewModel.uiState.value.actionError)
+    }
+
+    @Test
+    fun `visibility change of a missing entry reports an action error`() = runTest {
+        val viewModel = createSubscribedViewModel()
+
+        viewModel.onEvent(LogUiEvent.OnSetVisibility("missing", isPublic = true))
+
+        assertEquals(LogActionError.VISIBILITY, viewModel.uiState.value.actionError)
+    }
+
     // --- Photos ---
 
     @Test
@@ -305,6 +359,7 @@ private class FakeLogRepository : LogRepository {
     val entries = MutableStateFlow<List<TravelLogEntry>>(emptyList())
     var failUserEntries = false
     var failSave = false
+    var saveCount = 0
     val likeCalls = mutableListOf<Pair<String, String>>()
 
     override fun getUserEntries(userId: String): Flow<List<TravelLogEntry>> =
@@ -319,6 +374,7 @@ private class FakeLogRepository : LogRepository {
 
     override suspend fun saveEntry(entry: TravelLogEntry): Result<Unit> {
         if (failSave) return Result.failure(IllegalStateException("disk full"))
+        saveCount++
         entries.update { all ->
             if (all.any { it.id == entry.id }) all.map { if (it.id == entry.id) entry else it } else all + entry
         }

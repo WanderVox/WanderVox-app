@@ -37,7 +37,8 @@ class LogSyncCoordinatorTest {
 
     @Test
     fun signIn_pullsUserEntries_andRetriesPendingWork() = runTest {
-        dao.upsert(TravelLogEntry(id = "local", userId = "uid-1", syncStatus = SyncStatus.FAILED).asEntity())
+        // A shared entry whose upload failed: only public entries are uploaded.
+        dao.upsert(TravelLogEntry(id = "local", userId = "uid-1", isPublic = true, syncStatus = SyncStatus.FAILED).asEntity())
         remote.userEntries.value = listOf(TravelLogEntry(id = "r1", userId = "uid-1", syncStatus = SyncStatus.SYNCED))
         startCoordinator()
 

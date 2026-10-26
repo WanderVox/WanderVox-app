@@ -68,14 +68,12 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `offline mode and permissions update the state`() = runTest {
+    fun `permissions update the state`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
 
-        viewModel.onOfflineModeChange(true)
         viewModel.onPermissionsChecked(isMicrophoneGranted = true, isLocationGranted = false)
 
         val state = viewModel.uiState.value
-        assertTrue(state.isOfflineModeEnabled)
         assertTrue(state.isMicrophoneGranted)
         assertFalse(state.isLocationGranted)
     }

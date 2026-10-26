@@ -10,6 +10,8 @@ sealed interface TranslatorUiEvent {
     data class OnSaveToLog(
         val category: LogCategory,
         val notes: String,
+        /** Whether the entry is shared on the Community feed. */
+        val isPublic: Boolean = false,
     ) : TranslatorUiEvent
     data object OnDismissError : TranslatorUiEvent
     data object OnResetSaveSuccess : TranslatorUiEvent

@@ -1,5 +1,6 @@
 package com.wandervox.core.data.repository
 
+import com.wandervox.core.database.mapper.asDomain
 import com.wandervox.core.database.mapper.asEntity
 import com.wandervox.core.domain.model.SyncStatus
 import com.wandervox.core.domain.model.TravelLogEntry
@@ -8,11 +9,15 @@ import com.wandervox.core.network.remote.log.LogRemoteDataSource
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -35,7 +40,9 @@ class OfflineFirstLogRepositoryTest {
     private fun TestScope.repository(currentUser: User? = user) =
         OfflineFirstLogRepository(dao, remote, uploader, FakeAuthRepository(currentUser), appScope = this)
 
-    private val translatorEntry = TravelLogEntry(id = "e1", originalText = "Hola", translatedText = "Hello")
+    /** Public, so the sync tests exercise the upload pipeline; private entries never reach the remote. */
+    private val translatorEntry = TravelLogEntry(id = "e1", originalText = "Hola", translatedText = "Hello", isPublic = true)
+    private val privateEntry = translatorEntry.copy(isPublic = false)
 
     // --- userId fix ---
 
@@ -210,6 +217,172 @@ class OfflineFirstLogRepositoryTest {
 
         assertTrue(result.exceptionOrNull() is SyncIncompleteException)
         assertEquals(SyncStatus.FAILED, dao.row("e1")!!.syncStatus)
+    }
+
+    // --- upload on demand ---
+
+    @Test
+    fun saveEntry_private_staysLocal_withoutAnyNetworkCall() = runTest {
+        repository().saveEntry(privateEntry.copy(localPhotoPath = "/files/p.jpg")).getOrThrow()
+        advanceUntilIdle()
+
+        assertTrue(remote.operations.isEmpty())
+        assertTrue(uploader.uploads.isEmpty())
+        // SYNCED: nothing is owed to the server, so no "pending" badge and nothing for syncPending().
+        assertEquals(SyncStatus.SYNCED, dao.row("e1")!!.syncStatus)
+    }
+
+    @Test
+    fun editingANeverSharedEntry_staysLocal() = runTest {
+        val repo = repository()
+        repo.saveEntry(privateEntry).getOrThrow()
+        repo.saveEntry(privateEntry.copy(notes = "editada")).getOrThrow()
+        advanceUntilIdle()
+
+        assertTrue(remote.operations.isEmpty())
+        assertEquals("editada", dao.row("e1")!!.notes)
+    }
+
+    @Test
+    fun syncPending_skipsPrivateLocalEntries() = runTest {
+        val repo = repository()
+        repo.saveEntry(privateEntry).getOrThrow()
+
+        repo.syncPending().getOrThrow()
+        advanceUntilIdle()
+
+        assertTrue(remote.operations.isEmpty())
+    }
+
+    @Test
+    fun sharing_uploadsPhotoThenWritesPublicDocument() = runTest {
+        val repo = repository()
+        repo.saveEntry(privateEntry.copy(localPhotoPath = "/files/p.jpg")).getOrThrow()
+        advanceUntilIdle()
+
+        repo.saveEntry(privateEntry.copy(localPhotoPath = "/files/p.jpg", isPublic = true)).getOrThrow()
+        advanceUntilIdle()
+
+        assertEquals(listOf("/files/p.jpg"), uploader.uploads)
+        val document = remote.upserted.single()
+        assertTrue(document.isPublic)
+        assertEquals("https://cdn.example/photo.jpg", document.remotePhotoUrl)
+        assertEquals(SyncStatus.SYNCED, dao.row("e1")!!.syncStatus)
+    }
+
+    @Test
+    fun makingPrivate_deletesRemoteDocument_keepsRowAndPhotoUrl() = runTest {
+        val repo = repository()
+        repo.saveEntry(translatorEntry.copy(localPhotoPath = "/files/p.jpg")).getOrThrow()
+        advanceUntilIdle()
+
+        repo.saveEntry(dao.row("e1")!!.asDomain().copy(isPublic = false)).getOrThrow()
+        advanceUntilIdle()
+
+        assertEquals(listOf("upsert:e1", "delete:e1"), remote.operations)
+        val row = dao.row("e1")!!
+        assertFalse(row.isPublic)
+        assertEquals(SyncStatus.SYNCED, row.syncStatus)
+        assertEquals("https://cdn.example/photo.jpg", row.remotePhotoUrl)
+    }
+
+    @Test
+    fun sharingAgain_reusesUploadedPhoto() = runTest {
+        val repo = repository()
+        repo.saveEntry(translatorEntry.copy(localPhotoPath = "/files/p.jpg")).getOrThrow()
+        advanceUntilIdle()
+        repo.saveEntry(dao.row("e1")!!.asDomain().copy(isPublic = false)).getOrThrow()
+        advanceUntilIdle()
+
+        repo.saveEntry(dao.row("e1")!!.asDomain().copy(isPublic = true)).getOrThrow()
+        advanceUntilIdle()
+
+        assertEquals(1, uploader.uploads.size)
+        assertEquals(listOf("upsert:e1", "delete:e1", "upsert:e1"), remote.operations)
+    }
+
+    @Test
+    fun unpublishOffline_marksFailed_thenSyncPendingFinishesIt() = runTest {
+        val repo = repository()
+        repo.saveEntry(translatorEntry).getOrThrow()
+        advanceUntilIdle()
+        remote.deleteResult = Result.failure(IllegalStateException("offline"))
+
+        repo.saveEntry(translatorEntry.copy(isPublic = false)).getOrThrow()
+        advanceUntilIdle()
+        assertEquals(SyncStatus.FAILED, dao.row("e1")!!.syncStatus)
+
+        remote.deleteResult = Result.success(Unit)
+        repo.syncPending().getOrThrow()
+        assertEquals(SyncStatus.SYNCED, dao.row("e1")!!.syncStatus)
+        assertEquals(listOf("e1"), remote.deleted)
+    }
+
+    @Test
+    fun visibility_isWrittenToTheUploadedDocument() = runTest {
+        repository().saveEntry(translatorEntry).getOrThrow()
+        advanceUntilIdle()
+
+        assertTrue(remote.upserted.single().isPublic)
+        assertTrue(dao.row("e1")!!.isPublic)
+    }
+
+    @Test
+    fun communityFeed_showsEntryOnceShared_andDropsItWhenPrivate() = runTest {
+        // Stands in for Firestore: upserts land in the store, the public query is a live filter over it.
+        val store = MutableStateFlow<Map<String, TravelLogEntry>>(emptyMap())
+        remote.onUpsert = { entry -> store.update { it + (entry.id to entry) }; Result.success(Unit) }
+        remote.onDeleted = { id -> store.update { it - id } }
+        remote.publicEntries = store.map { docs -> docs.values.filter { it.isPublic } }
+        val repo = repository()
+        val feed = mutableListOf<List<String>>()
+        // Unconfined: advanceUntilIdle() does not drive backgroundScope, so collect eagerly instead.
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            repo.getCommunityEntries().collect { entries -> feed += entries.map { it.id } }
+        }
+
+        repo.saveEntry(privateEntry).getOrThrow()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), feed.last())
+
+        repo.saveEntry(privateEntry.copy(isPublic = true)).getOrThrow()
+        advanceUntilIdle()
+        assertEquals(listOf("e1"), feed.last())
+
+        repo.saveEntry(privateEntry).getOrThrow()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), feed.last())
+    }
+
+    @Test
+    fun lifecycle_privateWithPhoto_isLocalUntilShared_thenUploadedAndInCommunity() = runTest {
+        val store = MutableStateFlow<Map<String, TravelLogEntry>>(emptyMap())
+        remote.onUpsert = { entry -> store.update { it + (entry.id to entry) }; Result.success(Unit) }
+        remote.publicEntries = store.map { docs -> docs.values.filter { it.isPublic } }
+        val repo = repository()
+        val feed = mutableListOf<List<TravelLogEntry>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { repo.getCommunityEntries().collect { feed += it } }
+
+        // 1. Saved from the Translator with a photo copied to filesDir: local only.
+        repo.saveEntry(privateEntry.copy(localPhotoPath = "/files/log_photos/e1.jpg")).getOrThrow()
+        advanceUntilIdle()
+        assertTrue(uploader.uploads.isEmpty())
+        assertTrue(remote.operations.isEmpty())
+        assertTrue(feed.last().isEmpty())
+
+        // 2. Shared from its card: photo to Cloudinary, then the public document to Firestore.
+        repo.saveEntry(dao.row("e1")!!.asDomain().copy(isPublic = true)).getOrThrow()
+        advanceUntilIdle()
+        assertEquals(listOf("/files/log_photos/e1.jpg"), uploader.uploads)
+        val document = store.value.getValue("e1")
+        assertTrue(document.isPublic)
+        assertEquals("https://cdn.example/photo.jpg", document.remotePhotoUrl)
+
+        // 3. The Community feed shows it, with the Cloudinary URL other devices load the photo from.
+        assertEquals("https://cdn.example/photo.jpg", feed.last().single().remotePhotoUrl)
+        val row = dao.row("e1")!!
+        assertEquals(SyncStatus.SYNCED, row.syncStatus)
+        assertEquals("/files/log_photos/e1.jpg", row.localPhotoPath)
     }
 
     // --- reads ---
